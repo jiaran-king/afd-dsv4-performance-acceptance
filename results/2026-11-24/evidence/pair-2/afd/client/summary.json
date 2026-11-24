@@ -1,0 +1,6 @@
+{
+  "workload_sha256": "a2790b443e9a0ba14deedf4b683e64f75450b7db35fa2bc35a11c10b650a111b",
+  "request_rate": 4.0,
+  "scheduling_policy": "fixed-slot-order, dependency-checked",
+  "missed_slots_for_dependency": 0
+}

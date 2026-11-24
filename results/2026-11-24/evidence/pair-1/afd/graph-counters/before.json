@@ -1,0 +1,54 @@
+[
+  {
+    "rank": 12,
+    "pid": 329159,
+    "proc_start_ticks": "1182069604",
+    "observed_ns": 11820981430261581,
+    "mode": "full",
+    "capture_count": 1,
+    "submitted_replays": 1849,
+    "pending": true,
+    "max_pending_replays": 43,
+    "layered_per_channel": true,
+    "boundary": "before"
+  },
+  {
+    "rank": 13,
+    "pid": 329158,
+    "proc_start_ticks": "1182069603",
+    "observed_ns": 11820981445143985,
+    "mode": "full",
+    "capture_count": 1,
+    "submitted_replays": 1849,
+    "pending": true,
+    "max_pending_replays": 43,
+    "layered_per_channel": true,
+    "boundary": "before"
+  },
+  {
+    "rank": 14,
+    "pid": 329166,
+    "proc_start_ticks": "1182069606",
+    "observed_ns": 11820981430262031,
+    "mode": "full",
+    "capture_count": 1,
+    "submitted_replays": 1849,
+    "pending": true,
+    "max_pending_replays": 43,
+    "layered_per_channel": true,
+    "boundary": "before"
+  },
+  {
+    "rank": 15,
+    "pid": 329167,
+    "proc_start_ticks": "1182069607",
+    "observed_ns": 11820981434263127,
+    "mode": "full",
+    "capture_count": 1,
+    "submitted_replays": 1849,
+    "pending": true,
+    "max_pending_replays": 43,
+    "layered_per_channel": true,
+    "boundary": "before"
+  }
+]

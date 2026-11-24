@@ -1,0 +1,12 @@
+vllm:request_queue_time_seconds_count{model_name="dsv4",sample="0"} 394.0
+vllm:request_queue_time_seconds_sum{model_name="dsv4",sample="1"} 0.0091395303606987
+vllm:request_queue_time_seconds_count{model_name="dsv4",sample="2"} 417.0
+vllm:request_queue_time_seconds_sum{model_name="dsv4",sample="3"} 0.33395528234541416
+vllm:request_queue_time_seconds_count{model_name="dsv4",sample="4"} 407.0
+vllm:request_queue_time_seconds_sum{model_name="dsv4",sample="5"} 0.011545594781637192
+vllm:request_prefill_time_seconds_count{model_name="dsv4",sample="6"} 394.0
+vllm:request_prefill_time_seconds_sum{model_name="dsv4",sample="7"} 561.8546609468758
+vllm:request_prefill_time_seconds_count{model_name="dsv4",sample="8"} 417.0
+vllm:request_prefill_time_seconds_sum{model_name="dsv4",sample="9"} 547.6164477523416
+vllm:request_prefill_time_seconds_count{model_name="dsv4",sample="10"} 407.0
+vllm:request_prefill_time_seconds_sum{model_name="dsv4",sample="11"} 548.8703666906804

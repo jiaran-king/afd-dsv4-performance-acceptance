@@ -1,0 +1,16 @@
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="0"} 670022.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="1"} 890864.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="2"} 717807.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="3"} 677573.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="4"} 738832.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="5"} 616069.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="6"} 807052.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="7"} 791801.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="8"} 802858.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="9"} 820951.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="10"} 743462.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="11"} 748137.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="12"} 717762.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="13"} 816603.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="14"} 843001.0
+vllm:prompt_tokens_by_source_total{source="external_kv_transfer",sample="15"} 780657.0
