@@ -1,0 +1,78 @@
+cases/910c-dsv4-w4a8-rps4/patches/afd-shared-expert-dp.patch
+  s_4142e4d823eacb::t_f653573f2e92e1 1-19
+results/2026-11-24/evidence/afd/client/summary.json
+  s_4142e4d823eacb::t_4811d24454b8d5 1-6
+scripts/prepare-runtime.sh
+  s_4142e4d823eacb::t_2015f2d39a998d 82,87,99-110,112
+scripts/run-group.sh
+  s_4142e4d823eacb::t_59c55a397c51c2 56-60
+scripts/prepare-runtime.py
+  s_4142e4d823eacb::t_2015f2d39a998d 30,33,35-48
+scripts/prepare-workload.py
+  s_4142e4d823eacb::t_1b8aa546f799f1 81
+results/2026-11-24/reference.json
+  s_4142e4d823eacb::t_4811d24454b8d5 2-12,14-30,32-46,49-86,88-96,98-104
+docs/acceptance.md
+  s_4142e4d823eacb::t_1b8aa546f799f1 8,18,23,31
+reproduce.sh
+  s_4142e4d823eacb::t_59c55a397c51c2 158
+cases/910c-dsv4-w4a8-rps4/case.json
+  s_4142e4d823eacb::t_1b8aa546f799f1 38
+  s_4142e4d823eacb::t_d45a1777be14f0 22-25
+results/2026-11-24/evidence/afd/pre-d.metrics
+  s_4142e4d823eacb::t_4811d24454b8d5 1-16
+results/2026-11-24/evidence/loaded-native.json
+  s_4142e4d823eacb::t_4811d24454b8d5 1-12
+results/2026-11-24/README.md
+  s_4142e4d823eacb::t_1b8aa546f799f1 1,3,5,7-8,10,12,14
+scripts/verify-reference.py
+  s_4142e4d823eacb::t_1b8aa546f799f1 10,39,44-50,52-63
+docs/reproduce-910c.md
+  s_4142e4d823eacb::t_1b8aa546f799f1 28,34
+cases/910c-dsv4-w4a8-rps4/DATASET.md
+  s_4142e4d823eacb::t_1b8aa546f799f1 3
+results/2026-11-24/evidence/afd/prefill_attention_node0-window.log
+  s_4142e4d823eacb::t_4811d24454b8d5 1-90
+scripts/audit.py
+  s_4142e4d823eacb::t_59c55a397c51c2 269,282-286
+scripts/environment.sh
+  s_4142e4d823eacb::t_2015f2d39a998d 6-7
+scripts/afd_shared_dp_probe.py
+  s_4142e4d823eacb::t_d45a1777be14f0 1-71
+scripts/launch.sh
+  s_4142e4d823eacb::t_2015f2d39a998d 26,140-142,144,152-153
+results/2026-11-24/evidence/afd/graph-counters/before.json
+  s_4142e4d823eacb::t_4811d24454b8d5 1-54
+scripts/verify-native.py
+  s_4142e4d823eacb::t_2015f2d39a998d 18,22,24-33
+results/2026-11-24/evidence/afd/graph-counters/after.json
+  s_4142e4d823eacb::t_4811d24454b8d5 1-54
+results/2026-11-24/evidence/afd/post-d.metrics
+  s_4142e4d823eacb::t_4811d24454b8d5 1-16
+results/2026-11-24/evidence/afd/pre-7100.metrics
+  s_4142e4d823eacb::t_4811d24454b8d5 1-12
+README.md
+  s_4142e4d823eacb::t_1b8aa546f799f1 3,7,18,31
+scripts/shared_expert_dp.py
+  s_4142e4d823eacb::t_59c55a397c51c2 1-52
+results/2026-11-24/evidence/afd/decode-window.log
+  s_4142e4d823eacb::t_4811d24454b8d5 1-1209
+results/2026-11-24/evidence/afd/post-7100.metrics
+  s_4142e4d823eacb::t_4811d24454b8d5 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "af639a6d462577f8f3ed0da0b18aa19231decdce",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
