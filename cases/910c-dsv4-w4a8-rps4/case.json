@@ -52,7 +52,6 @@
         "sha256": "e9d0ac33bcc10538e2b0f39b25dcd1298cb897a9b9114770035c9ef3b0965b14"
       }
     },
-    "reference_index_sha256": "d26feb185bea341ac923d66434774c6ce5af343d1ff2e5ef7490e1e7b2d24f87",
     "prefix_cache": false,
     "request_rate": 4,
     "output_tokens": 1,

@@ -3,14 +3,9 @@ set -euo pipefail
 
 root=$(cd -- "$(dirname -- "$0")" && pwd)
 usage() {
-    printf '%s\n' \
-        "Usage: ./reproduce.sh --verify-reference" \
-        "       ./reproduce.sh --site site.env [--prepare-only]"
+    printf '%s\n' "Usage: ./reproduce.sh --site site.env [--prepare-only]"
 }
 
-if [[ ${1:-} == --verify-reference && $# == 1 ]]; then
-    exec python3 -B "$root/scripts/verify-reference.py"
-fi
 if [[ ${1:-} == --help ]]; then usage; exit 0; fi
 if [[ ${1:-} != --site || $# -lt 2 || $# -gt 3 ]]; then usage >&2; exit 2; fi
 site=$2
