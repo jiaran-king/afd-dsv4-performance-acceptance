@@ -39,17 +39,7 @@ if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
     raise SystemExit(f"Patch checksum does not match case lock: {path.name}")
 PY
 done
-if [[ ! -d "$overlay" ]]; then
-    staging=$(mktemp -d "$runtime/cws.XXXXXX")
-    trap 'rm -rf -- "$staging"' EXIT
-    tar -C "$ASCEND_SOURCE" --exclude=.git --exclude=__pycache__ --exclude=./csrc/build --exclude=./csrc/build_out -cf - . | tar -C "$staging" -xf -
-    git -C "$staging" apply --whitespace=nowarn "$case_dir/patches/cws-v030-mrv2.patch"
-    git -C "$staging" apply --whitespace=nowarn "$case_dir/patches/cws-pd-logical-pages.patch"
-    mv -- "$staging" "$overlay"
-    trap - EXIT
-fi
-git -C "$overlay" apply --check --reverse "$case_dir/patches/cws-v030-mrv2.patch"
-git -C "$overlay" apply --check --reverse "$case_dir/patches/cws-pd-logical-pages.patch"
+bash "$root/scripts/prepare-cws-overlay.sh" "$ASCEND_SOURCE" "$runtime" "$case_dir/patches"
 
 export PYTHONPATH="$afd:$overlay:$VLLM_SOURCE:${PYTHONPATH:-}"
 if [[ -z "${CWS_VENDOR_DIR:-}" ]]; then

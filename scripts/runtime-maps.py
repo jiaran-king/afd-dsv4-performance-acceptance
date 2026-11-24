@@ -63,8 +63,11 @@ def main():
     paths = {path for process in processes for path in process["mapped_custom_ops"]}
     hashes = {}
     for path in sorted(paths):
+        digest = hashlib.sha256()
         with Path(path).open("rb") as library:
-            hashes[path] = hashlib.file_digest(library, "sha256").hexdigest()
+            for block in iter(lambda: library.read(1024 * 1024), b""):
+                digest.update(block)
+        hashes[path] = digest.hexdigest()
     print(json.dumps({"processes": processes, "library_sha256": hashes}, indent=2))
 
 
