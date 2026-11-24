@@ -1,0 +1,23 @@
+scripts/prepare-runtime.sh
+  s_4142e4d823eacb::t_49edbeb43411d3 114-117
+reproduce.sh
+  s_4142e4d823eacb::t_49edbeb43411d3 7,11,13-18,25-30,131-141,143,147-150,152,176-178
+docs/reproduce-910c.md
+  s_4142e4d823eacb::t_49edbeb43411d3 78,81,100-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9c60605d8d8813e97f496bd71afd015ab9c66ec1",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
