@@ -25,7 +25,7 @@ cp site.env.example site.env
 
 | 字段 | 怎么查、怎么填 |
 | --- | --- |
-| `P_NODE_IP`、`D_NODE_IP`、`P_NIC`、`D_NIC` | 执行 `ip -br -4 addr`，查 Mooncake 数据网卡和对应 IPv4。IP 字段填地址本身，去掉 `/24` 等前缀长度。 |
+| `P_NODE_IP`、`D_NODE_IP`、`P_NIC`、`D_NIC` | 执行 `ip -br -4 addr`，查 Mooncake 数据网卡和对应 IPv4。IP 字段填地址本身，去掉 `/24` 等前缀长度。 iTask 镜像没有 `ip` 时，用控制机的 `itask-guian list --live` 查 Pod IPv4，并在容器内用 `ls /sys/class/net` 核对网卡。 |
 | `P_DEVICES`、`D_DEVICES` | 执行 `npu-smi info -m`，填各自分配给测试的 **16 个逻辑 DIE ID**，用逗号分隔。 |
 | `P_MODEL_DIR`、`D_MODEL_DIR` | 填各自容器内的 checkpoint 根目录，该目录应直接包含 `config.json`、`quant_model_description.json`、`tokenizer.json` 和权重分片。两端挂载路径可以不同。 |
 | `P_SSH`、`P_CONTAINER`、`D_SSH`、`D_CONTAINER` | 从 P 容器发起时，前两项留空。`D_SSH` 填 `用户@D宿主机`，`D_CONTAINER` 填宿主机上的容器名。SSH 直接进入 D 容器时，`D_CONTAINER` 留空。 |
@@ -59,13 +59,35 @@ ssh tester@decode-host.example \
 
 从独立控制机发起时，分别填 `P_SSH` 和 `D_SSH`，并用 `SHARED_ROOT` 指定两端容器中的共享仓库绝对路径。`SITE_REMOTE_FILE` 可指定共享的配置文件路径，默认为 `$SHARED_ROOT/site.env`。现场已有远程执行器时可使用 `NODE_EXEC`。 [配置模板](../site.env.example)
 
+### 从 iTask 控制机运行
+
+使用控制机上的 iTask 客户端访问两端时，在本地 `site.env` 追加以下字段。`SHARED_ROOT` 填两端容器看到的验收仓绝对路径。将同一份 `site.env` 复制到共享仓根目录，或用 `SITE_REMOTE_FILE` 指向其共享路径。控制机在本地检出的仓库根目录执行第 4 步命令。 [iTask 执行器](../scripts/itask-node-exec.sh)
+
+~~~bash
+export ITASK_CLI=/path/to/itask-guian
+export ITASK_P_TASK=填入P任务名
+export ITASK_D_TASK=填入D任务名
+NODE_EXEC="$PWD/scripts/itask-node-exec.sh"
+SHARED_ROOT=/shared/afd-dsv4-performance-acceptance
+~~~
+
 ## 3. 准备冻结负载
 
 默认由脚本下载请求包并校验指纹。现场无法访问 GitHub 时，在有网机器检出交付版验收仓，连同 `.git` 带入共享目录。将预下载的 `afd-wildchat-rps4-v2.tar.gz` 放到 P 容器可读的位置，在 `site.env` 填写 `WORKLOAD_ARCHIVE`。另按交付版 `case.json` 的 `runtime.afd` 检出固定 AFD 提交，把该 checkout 连同 `.git` 放到验收仓的 `.runtime/afd-plugin`。 [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
 
+发布页也提供合适的 Git 离线包。校验包附的 `SHA256SUMS` 后，把文件传到共享目录，再克隆验收仓和固定 AFD 源码。下面以 `v0.2.1` 为例。 [发布资源](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.2.1)
+
+~~~bash
+git clone --branch v0.2.1 /shared/afd-acceptance-v0.2.1.bundle /shared/afd-dsv4-performance-acceptance
+cd /shared/afd-dsv4-performance-acceptance
+tar -xzf /shared/afd-bc80959.git.tar.gz -C /shared
+mkdir -p .runtime
+git clone --no-hardlinks /shared/afd-bc80959.git .runtime/afd-plugin
+~~~
+
 ## 4. 运行并查看结果
 
-在 **P 容器的验收仓根目录**执行。
+在 **P 容器的验收仓根目录**执行。使用 `NODE_EXEC` 时在控制机的验收仓根目录执行。
 
 ~~~bash
 ./reproduce.sh --site site.env --prepare-only &&
