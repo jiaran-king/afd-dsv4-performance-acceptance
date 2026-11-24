@@ -111,6 +111,10 @@ else
     printf 'Using the prepared AFD installation for %s\n' "$afd_commit"
 fi
 
+# The pinned wheel omits dynamically imported namespace packages. Keep the
+# wheel's native libraries and registration, and use the pinned Python tree.
+git -C "$afd" archive "$afd_commit" afd_plugin | tar -C "$afd_install" -xf -
+
 # Reproduce the A-only source copy used by the shared-expert DP run.
 staging=$(mktemp -d "$runtime/afd-attention.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT

@@ -4,18 +4,30 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "$0")" && pwd)
 usage() {
     printf '%s\n' "Usage: ./reproduce.sh --site site.env [--prepare-only]"
+    printf '%s\n' "       ./reproduce.sh --site site.env --resume-afd <run-id>"
 }
 
 if [[ ${1:-} == --help ]]; then usage; exit 0; fi
-if [[ ${1:-} != --site || $# -lt 2 || $# -gt 3 ]]; then usage >&2; exit 2; fi
+if [[ ${1:-} != --site || $# -lt 2 ]]; then usage >&2; exit 2; fi
 site=$2
-case "${3:-}" in ""|--prepare-only) ;; *) usage >&2; exit 2 ;; esac
+mode=${3:-}
+case "$mode" in
+    ""|--prepare-only) [[ $# -le 3 ]] || { usage >&2; exit 2; } ;;
+    --resume-afd) [[ $# -eq 4 && "$4" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9]+$ ]] || { usage >&2; exit 2; } ;;
+    *) usage >&2; exit 2 ;;
+esac
 source "$site"
 
 shared=${SHARED_ROOT:-$root}
 case "$shared" in /*) ;; *) echo "SHARED_ROOT must be absolute inside both containers." >&2; exit 2 ;; esac
 remote_site=${SITE_REMOTE_FILE:-$shared/site.env}
 run="$shared/runs/$(date -u +%Y%m%dT%H%M%SZ)-$$"
+baseline_run=$run
+arms=(baseline afd12 afd8)
+if [[ "$mode" == --resume-afd ]]; then
+    baseline_run="$shared/runs/$4"
+    arms=(afd12 afd8)
+fi
 site_runner=${NODE_EXEC:-}
 group=
 
@@ -116,13 +128,28 @@ done
 asset_args=()
 if [[ -n "${WORKLOAD_ARCHIVE:-}" ]]; then asset_args=(--archive "$WORKLOAD_ARCHIVE"); fi
 node P python3 -B "$shared/scripts/prepare-workload.py" "${asset_args[@]+"${asset_args[@]}"}"
+workload="$shared/.runtime/workload/formal-candidate/requests.jsonl"
+if [[ "$mode" == --resume-afd ]]; then
+    for role in P D; do
+        if ! node P cmp -s "$baseline_run/$role-preflight.json" "$run/$role-preflight.json"; then
+            printf '%s\n' "The $role preflight differs from the saved baseline. Run the full case again." >&2
+            exit 1
+        fi
+    done
+    node P python3 -B "$shared/scripts/audit.py" "$workload" "$baseline_run/baseline-formal" \
+        --baseline-warmup "$baseline_run/baseline-warmup" --check --output "$run/baseline-audit.json" >/dev/null
+fi
 run_script P prepare-runtime.sh
-if [[ ${3:-} == --prepare-only ]]; then
+if [[ "$mode" == --prepare-only ]]; then
     printf 'Prepared the locked case at %s\n' "$run"
     exit 0
 fi
+if [[ "$mode" == --resume-afd ]]; then
+    node P python3 -B "$shared/scripts/verify-native.py" "$baseline_run/baseline-p/native-maps.json" "$shared/.runtime" baseline
+    printf 'Reusing the verified baseline at %s\n' "$baseline_run"
+fi
 
-for arm in baseline afd12 afd8; do
+for arm in "${arms[@]}"; do
     group=$arm
     run_script D launch.sh decode "$arm-d" "$arm"
     case "$arm" in
@@ -146,9 +173,9 @@ for arm in baseline afd12 afd8; do
     stop_group
 done
 
-node P python3 -B "$shared/scripts/audit.py" "$shared/.runtime/workload/formal-candidate/requests.jsonl" \
-    "$run/baseline-formal" "$run/afd12-formal" \
-    --baseline-warmup "$run/baseline-warmup" --afd-warmup "$run/afd12-warmup" \
+node P python3 -B "$shared/scripts/audit.py" "$workload" \
+    "$baseline_run/baseline-formal" "$run/afd12-formal" \
+    --baseline-warmup "$baseline_run/baseline-warmup" --afd-warmup "$run/afd12-warmup" \
     --ffn-graph "$run/afd12-p/graph-counters" --flexible-ratio "$run/afd8-p" \
     --attention-layout "$run/afd12-p/attention-layout.json" \
     --check --output "$run/acceptance.json"

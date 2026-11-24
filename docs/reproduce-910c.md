@@ -75,10 +75,10 @@ SHARED_ROOT=/shared/afd-dsv4-performance-acceptance
 
 默认由脚本下载请求包并校验指纹。现场无法访问 GitHub 时，在有网机器检出交付版验收仓，连同 `.git` 带入共享目录。将预下载的 `afd-wildchat-rps4-v2.tar.gz` 放到 P 容器可读的位置，在 `site.env` 填写 `WORKLOAD_ARCHIVE`。另按交付版 `case.json` 的 `runtime.afd` 检出固定 AFD 提交，把该 checkout 连同 `.git` 放到验收仓的 `.runtime/afd-plugin`。 [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
 
-发布页也提供 Git 离线包。校验包附的 `SHA256SUMS` 后，把文件传到共享目录，再克隆验收仓和固定 AFD 源码。下面以 `v0.2.2` 为例。 [发布资源](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.2.2)
+发布页也提供 Git 离线包。校验包附的 `SHA256SUMS` 后，把文件传到共享目录，再克隆验收仓和固定 AFD 源码。下面以 `v0.2.3` 为例。 [发布资源](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.2.3)
 
 ~~~bash
-git clone --branch v0.2.2 /shared/afd-acceptance-v0.2.2.bundle /shared/afd-dsv4-performance-acceptance
+git clone --branch v0.2.3 /shared/afd-acceptance-v0.2.3.bundle /shared/afd-dsv4-performance-acceptance
 cd /shared/afd-dsv4-performance-acceptance
 tar --no-same-owner -xzf /shared/afd-bc80959.git.tar.gz -C /shared
 mkdir -p .runtime
@@ -97,3 +97,9 @@ git clone --no-hardlinks /shared/afd-bc80959.git .runtime/afd-plugin
 第一条检查环境并准备固定源码、补丁和算子。第二条在同一对节点上跑**双 EP8 8K 基线、12A+4F AFD 性能对照和 8A+8F 配比检查**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。 [验收配置与判定](acceptance.md)
 
 打开正式运行生成的 `runs/<run-id>/acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对**现场同轮双 EP8 基线**的平均 TTFT 降幅，门槛为**至少 20%**。若脚本中途退出，保留终端报错和该次运行目录供定位。
+
+若双 EP8 已完成，仍使用原 P/D 容器和现场配置，可以从同一次验收续跑 AFD 与配比检查。将 `RUN_ID` 填为原运行目录名。脚本复核原基线并在新的运行目录写入验收结果。
+
+~~~bash
+./reproduce.sh --site site.env --resume-afd "$RUN_ID"
+~~~
