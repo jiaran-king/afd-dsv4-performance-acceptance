@@ -75,12 +75,12 @@ SHARED_ROOT=/shared/afd-dsv4-performance-acceptance
 
 默认由脚本下载请求包并校验指纹。现场无法访问 GitHub 时，在有网机器检出交付版验收仓，连同 `.git` 带入共享目录。将预下载的 `afd-wildchat-rps4-v2.tar.gz` 放到 P 容器可读的位置，在 `site.env` 填写 `WORKLOAD_ARCHIVE`。另按交付版 `case.json` 的 `runtime.afd` 检出固定 AFD 提交，把该 checkout 连同 `.git` 放到验收仓的 `.runtime/afd-plugin`。 [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
 
-发布页也提供合适的 Git 离线包。校验包附的 `SHA256SUMS` 后，把文件传到共享目录，再克隆验收仓和固定 AFD 源码。下面以 `v0.2.1` 为例。 [发布资源](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.2.1)
+发布页也提供 Git 离线包。校验包附的 `SHA256SUMS` 后，把文件传到共享目录，再克隆验收仓和固定 AFD 源码。下面以 `v0.2.2` 为例。 [发布资源](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.2.2)
 
 ~~~bash
-git clone --branch v0.2.1 /shared/afd-acceptance-v0.2.1.bundle /shared/afd-dsv4-performance-acceptance
+git clone --branch v0.2.2 /shared/afd-acceptance-v0.2.2.bundle /shared/afd-dsv4-performance-acceptance
 cd /shared/afd-dsv4-performance-acceptance
-tar -xzf /shared/afd-bc80959.git.tar.gz -C /shared
+tar --no-same-owner -xzf /shared/afd-bc80959.git.tar.gz -C /shared
 mkdir -p .runtime
 git clone --no-hardlinks /shared/afd-bc80959.git .runtime/afd-plugin
 ~~~
