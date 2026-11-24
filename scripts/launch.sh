@@ -23,7 +23,7 @@ export PYTHON_VLLM_PATH="$VLLM_SOURCE"
 export PYTHON_VLLM_ASCEND_PATH="$ASCEND_SOURCE"
 export PYTHON_AFD_PLUGIN_PATH="$runtime/afd-plugin"
 export PYTHONPATH="$PYTHON_VLLM_PATH:$PYTHON_VLLM_ASCEND_PATH:${PYTHONPATH:-}"
-export DSV4_SCRIPT_DIR="$runtime/skill"
+export DSV4_SCRIPT_DIR="$skill_dir"
 run_root=$(cd -- "${CASE_RUN_DIR:?Set CASE_RUN_DIR}" && pwd -P)
 export LOG_DIR="$run_root/$run_name"
 export PID_DIR="$LOG_DIR/pids"
@@ -137,8 +137,11 @@ case "$role" in
                 export PREFILL_FFN_VISIBLE_DEVICES="$(devices 12 4)"
                 export PREFILL_FFN_GRAPH_MODE=FULL
                 export AFD_GRAPH_PROBE_DIR="$LOG_DIR/graph-counters"
+                export AFD_ATTENTION_SHARED_EXPERT_DP=true
+                export AFD_ATTENTION_SOURCE="$attention_source"
+                export AFD_SHARED_DP_PROBE_DIR="$LOG_DIR/attention-ranks"
                 export PYTHONPATH="$root/scripts:$PYTHONPATH"
-                mkdir "$AFD_GRAPH_PROBE_DIR"
+                mkdir "$AFD_GRAPH_PROBE_DIR" "$AFD_SHARED_DP_PROBE_DIR"
                 ;;
             8a8f)
                 export PREFILL_DP_SIZE="$AFD8_A_DP" PREFILL_TP_SIZE="$AFD8_A_TP" NUM_ATTENTION_RANKS=8
@@ -146,7 +149,8 @@ case "$role" in
                 export PREFILL_ATTN_VISIBLE_DEVICES="$(devices 0 8)"
                 export PREFILL_FFN_VISIBLE_DEVICES="$(devices 8 8)"
                 export PREFILL_FFN_GRAPH_MODE=EAGER
-                unset AFD_GRAPH_PROBE_DIR
+                export AFD_ATTENTION_SHARED_EXPERT_DP=false
+                unset AFD_GRAPH_PROBE_DIR AFD_ATTENTION_SOURCE AFD_SHARED_DP_PROBE_DIR
                 ;;
             *)
                 printf '%s\n' 'Specify 12a4f or 8a8f' >&2

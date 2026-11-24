@@ -79,12 +79,12 @@ fi
 test -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
 test "$(basename -- "$CWS_VENDOR_DIR")" = cws32k_transformer
 printf '%s\n' "$CWS_VENDOR_DIR" > "$runtime/cws-vendor.path"
-if [[ ! -d "$runtime/skill" ]]; then
+if [[ ! -d "$skill_dir" ]]; then
     staging=$(mktemp -d "$runtime/skill.XXXXXX")
     trap 'rm -rf -- "$staging"' EXIT
     python3 -B "$root/scripts/prepare-runtime.py" \
         "$afd/.agents/skills/deploy-dsv4-flash-async/scripts" "$staging/scripts"
-    mv -- "$staging/scripts" "$runtime/skill"
+    mv -- "$staging/scripts" "$skill_dir"
     rmdir "$staging"
     trap - EXIT
 fi
@@ -96,5 +96,18 @@ fi
         SOC_VERSION=910c AFD_BUILD_ASCEND_OPS=1 \
         python3 -m pip install --no-deps --no-build-isolation -e .
 )
+
+# Reproduce the A-only source copy used by the shared-expert DP run.
+staging=$(mktemp -d "$runtime/afd-attention.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+tar -C "$afd" --exclude=__pycache__ -cf - afd_plugin | tar -C "$staging" -xf -
+GIT_CEILING_DIRECTORIES="$runtime" git -C "$staging" apply "$case_dir/patches/afd-shared-expert-dp.patch"
+validator="$staging/afd_plugin/compat/npu/feature_validation.py"
+test "$(sha256sum "$validator" | cut -d ' ' -f 1)" = "$(value afd_attention_validation_sha256)"
+rm -rf -- "$attention_source"
+mv -- "$staging" "$attention_source"
+trap - EXIT
+
 sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" \
+    "$attention_source/afd_plugin/compat/npu/feature_validation.py" \
     "$afd/afd_plugin/_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so"

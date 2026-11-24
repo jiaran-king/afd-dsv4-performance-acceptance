@@ -1,6 +1,6 @@
 # Frozen requests / 冻结负载
 
-[GitHub Release](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0) 提供两轮参考实测使用的冻结请求包 `afd-wildchat-rps4-v2.tar.gz`。 [校验值](case.json) · [冻结清单](workload.json)
+[GitHub Release](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0) 提供参考实测使用的冻结请求包 `afd-wildchat-rps4-v2.tar.gz`。 [校验值](case.json) · [冻结清单](workload.json)
 
 | Split | 会话 | 请求 | 用途 |
 | --- | ---: | ---: | --- |

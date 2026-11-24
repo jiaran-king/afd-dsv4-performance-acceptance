@@ -5,6 +5,8 @@
   "afd": {
     "cws_opapi": "398151e8593c3c0d4ae46ce0fa13b5a9ac70e975297b0b0781991b69da25646b",
     "afd_opapi": "2b8dbd453b86c3b1095a0385f5cd745b5e28d7634456342d3a8077e2367efeb5",
-    "afd_extension": "2998dc5b6077b1fc7fc4e1540ae1c12ebedf96557265620abd47c9eee557f605"
+    "afd_extension": "2998dc5b6077b1fc7fc4e1540ae1c12ebedf96557265620abd47c9eee557f605",
+    "afd_attention_opapi": "2b8dbd453b86c3b1095a0385f5cd745b5e28d7634456342d3a8077e2367efeb5",
+    "afd_attention_extension": "2998dc5b6077b1fc7fc4e1540ae1c12ebedf96557265620abd47c9eee557f605"
   }
 }

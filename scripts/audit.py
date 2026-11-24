@@ -266,6 +266,7 @@ def main():
     parser.add_argument("--baseline-warmup", type=Path)
     parser.add_argument("--afd-warmup", type=Path)
     parser.add_argument("--ffn-graph", type=Path)
+    parser.add_argument("--attention-layout", type=Path)
     parser.add_argument("--flexible-ratio", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--check", action="store_true", help="Exit nonzero if the replay or TTFT gate fails")
@@ -278,6 +279,11 @@ def main():
     if args.ffn_graph:
         requests = read_rows(args.afd / "client/requests.jsonl")
         result["ffn_full_replay"] = verify_full_replay(args.ffn_graph, requests)
+    if args.attention_layout:
+        attention = json.loads(args.attention_layout.read_text())
+        if attention["observed_ranks"] != 12 or not attention["all_12_ranks_resolved_shared_expert_dp"]:
+            raise ValueError("Shared-expert DP was not verified on all 12 Attention ranks")
+        result["attention_shared_expert_dp"] = attention
     if args.flexible_ratio:
         smoke = {
             kind: json.loads((args.flexible_ratio / f"pd-{kind}/result.json").read_text())

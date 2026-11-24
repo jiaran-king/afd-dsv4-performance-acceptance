@@ -1,0 +1,19 @@
+diff --git a/afd_plugin/compat/npu/feature_validation.py b/afd_plugin/compat/npu/feature_validation.py
+--- a/afd_plugin/compat/npu/feature_validation.py
++++ b/afd_plugin/compat/npu/feature_validation.py
+@@ -273,13 +273,12 @@
+                 "or DeepSeek-V4",
+             )
+         additional_config = vllm_config.additional_config
+-        if additional_config.get("enable_shared_expert_dp", False) or any(
++        if any(
+             int(size) > 0
+             for size in additional_config.get("finegrained_tp_config", {}).values()
+         ):
+             raise RuntimeError(
+-                "AFD NPU ModelRunnerV2 Async CAM does not support finegrained TP "
+-                "or shared-expert DP",
++                "AFD NPU ModelRunnerV2 Async CAM does not support finegrained TP",
+             )
+     if extra_info.async_moe_ubatching or parallel_config.use_ubatching:
+         _fail_if_unsupported_npu_async_moe_ubatching_features(

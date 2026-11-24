@@ -1,6 +1,5 @@
 {
   "case": "910c-dsv4-w4a8-rps4",
-  "release": "v0.1.0",
   "hardware": {
     "chip": "Ascend 910C",
     "prefill_dies": 16,
@@ -20,8 +19,10 @@
     "afd_reference_extension_sha256": "2998dc5b6077b1fc7fc4e1540ae1c12ebedf96557265620abd47c9eee557f605",
     "patches": {
       "cws-pd-logical-pages.patch": "1c86c027bb460bbda1aafdbace4a16bde3ffc254989c6a286e7841c8ab85b2b3",
-      "cws-v030-mrv2.patch": "d1422ee0c06e3617e550b25f4042bdea435147f6498b8fcab1889d6fb65e9488"
-    }
+      "cws-v030-mrv2.patch": "d1422ee0c06e3617e550b25f4042bdea435147f6498b8fcab1889d6fb65e9488",
+      "afd-shared-expert-dp.patch": "49d8c4fcb76f7ce533093166682d02c7c5185432d73b347047dd36ec65780450"
+    },
+    "afd_attention_validation_sha256": "0785868f0c0dacc9658626d971200d994c38c9427b8c44d59b0e6ea0fea9d852"
   },
   "model": {
     "name": "DeepSeek-V4-Flash W4A8 + DSpark",
@@ -34,6 +35,7 @@
     "safetensors_shards": 42
   },
   "load": {
+    "release": "v0.1.0",
     "asset": "afd-wildchat-rps4-v2.tar.gz",
     "asset_sha256": "0f0e38743b2cdced2a376b2f6a3801bc5254e48132f04d52ccc5b745e3e386f8",
     "splits": {

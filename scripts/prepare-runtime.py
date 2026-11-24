@@ -27,12 +27,25 @@ def adapt(source, destination):
     )
     rank.write_text(text)
     attention = destination / "run_prefill_attention.sh"
-    attention.write_text(replace_once(
+    text = replace_once(
         attention.read_text(), r'  \"enable_cpu_binding\": ${ENABLE_CPU_BINDING},',
         r'  \"enable_dsv4_shared_compressor_workspace\": true,' + "\n"
-        + r'  \"enable_shared_expert_dp\": false,' + "\n"
+        + r'  \"enable_shared_expert_dp\": ${AFD_ATTENTION_SHARED_EXPERT_DP:-false},' + "\n"
         + r'  \"enable_cpu_binding\": ${ENABLE_CPU_BINDING},',
-    ))
+    )
+    text = replace_once(
+        text, 'echo "Starting DSV4 P/Attention:',
+        'ATTENTION_PROBE_ARGS=()\n'
+        'if [[ "${AFD_ATTENTION_SHARED_EXPERT_DP:-false}" == true ]]; then\n'
+        '  export PYTHONPATH="${AFD_ATTENTION_SOURCE:?}:$PYTHONPATH"\n'
+        '  export PYTHONDONTWRITEBYTECODE=1\n'
+        '  ATTENTION_PROBE_ARGS=(--worker-extension-cls afd_shared_dp_probe.Worker)\n'
+        'fi\n\n'
+        'echo "Starting DSV4 P/Attention:',
+    )
+    seed = "  --seed 1024 " + "\\\n"
+    probe = '  "${ATTENTION_PROBE_ARGS[@]+\"${ATTENTION_PROBE_ARGS[@]}\"}" ' + "\\\n"
+    attention.write_text(replace_once(text, seed, probe + seed))
     ffn = destination / "run_prefill_ffn.sh"
     text = replace_once(
         ffn.read_text(), 'echo "Starting DSV4 P/FFN:',

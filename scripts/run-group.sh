@@ -53,6 +53,11 @@ fi
 python3 -B "$root/scripts/runtime-maps.py" "$p_run" > "$p_run/native-maps.json"
 python3 -B "$root/scripts/verify-native.py" "$p_run/native-maps.json" "$runtime" "$group"
 
+if [[ "$group" == afd12 ]]; then
+    python3 -B "$root/scripts/shared_expert_dp.py" "$p_run/attention-ranks" \
+        "$attention_source/afd_plugin/compat/npu/feature_validation.py" > "$p_run/attention-layout.json"
+fi
+
 if [[ "$group" == afd8 ]]; then
     exit 0
 fi

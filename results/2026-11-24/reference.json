@@ -1,114 +1,105 @@
 {
-  "pairs": [
+  "baseline": {
+    "completed": 1200,
+    "observed_rps": 3.999992507227981,
+    "mean_ttft_ms": 3041.165189401557,
+    "p95_ttft_ms": 5091.698780562729,
+    "decoder_kv_transfers": 1200,
+    "decoder_external_kv_tokens": 12031604,
+    "p_request_phase_metrics": {
+      "queue": {
+        "requests": 1200,
+        "mean_ms": 405.83589135513955
+      },
+      "prefill": {
+        "requests": 1200,
+        "mean_ms": 1995.3009254982076
+      }
+    }
+  },
+  "afd": {
+    "completed": 1200,
+    "observed_rps": 3.999994134369695,
+    "mean_ttft_ms": 1732.0982786888878,
+    "p95_ttft_ms": 3520.686565618962,
+    "decoder_kv_transfers": 1200,
+    "decoder_external_kv_tokens": 12031604,
+    "p_request_phase_metrics": {
+      "queue": {
+        "requests": 1200,
+        "mean_ms": 0.025746050911645096
+      },
+      "prefill": {
+        "requests": 1200,
+        "mean_ms": 992.9341564265391
+      }
+    }
+  },
+  "reduction_pct": 43.044913024611745,
+  "ffn_full_replay": [
     {
-      "pair": "pair-1",
-      "baseline": {
-        "completed": 1200,
-        "observed_rps": 3.999984765205273,
-        "mean_ttft_ms": 3009.465244223053,
-        "p95_ttft_ms": 4964.72748760134,
-        "decoder_kv_transfers": 1200,
-        "decoder_external_kv_tokens": 12031604
-      },
-      "afd": {
-        "completed": 1200,
-        "observed_rps": 3.9999865336957012,
-        "mean_ttft_ms": 2305.1759568384537,
-        "p95_ttft_ms": 4331.575809884816,
-        "decoder_kv_transfers": 1200,
-        "decoder_external_kv_tokens": 12031604
-      },
-      "reduction_pct": 23.402472872433002,
-      "ffn_full_replay": [
-        {
-          "rank": 12,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75207,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75164
-        },
-        {
-          "rank": 13,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75207,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75164
-        },
-        {
-          "rank": 14,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75207,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75164
-        },
-        {
-          "rank": 15,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75207,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75164
-        }
-      ],
-      "acceptance_passed": true
+      "rank": 12,
+      "mode": "full",
+      "capture_count": 1,
+      "submitted_replays_delta": 87591,
+      "pending_replay_bound": 43,
+      "completed_replays_lower_bound": 87548
     },
     {
-      "pair": "pair-2",
-      "baseline": {
-        "completed": 1200,
-        "observed_rps": 3.999992507227981,
-        "mean_ttft_ms": 3041.165189401557,
-        "p95_ttft_ms": 5091.698780562729,
-        "decoder_kv_transfers": 1200,
-        "decoder_external_kv_tokens": 12031604
-      },
-      "afd": {
-        "completed": 1200,
-        "observed_rps": 3.9999293011927453,
-        "mean_ttft_ms": 2278.3126380015165,
-        "p95_ttft_ms": 4414.992411248386,
-        "decoder_kv_transfers": 1200,
-        "decoder_external_kv_tokens": 12031604
-      },
-      "reduction_pct": 25.08421949779569,
-      "ffn_full_replay": [
-        {
-          "rank": 12,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75422,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75379
-        },
-        {
-          "rank": 13,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75422,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75379
-        },
-        {
-          "rank": 14,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75422,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75379
-        },
-        {
-          "rank": 15,
-          "mode": "full",
-          "capture_count": 1,
-          "submitted_replays_delta": 75422,
-          "pending_replay_bound": 43,
-          "completed_replays_lower_bound": 75379
-        }
-      ],
-      "acceptance_passed": true
+      "rank": 13,
+      "mode": "full",
+      "capture_count": 1,
+      "submitted_replays_delta": 87591,
+      "pending_replay_bound": 43,
+      "completed_replays_lower_bound": 87548
+    },
+    {
+      "rank": 14,
+      "mode": "full",
+      "capture_count": 1,
+      "submitted_replays_delta": 87591,
+      "pending_replay_bound": 43,
+      "completed_replays_lower_bound": 87548
+    },
+    {
+      "rank": 15,
+      "mode": "full",
+      "capture_count": 1,
+      "submitted_replays_delta": 87591,
+      "pending_replay_bound": 43,
+      "completed_replays_lower_bound": 87548
     }
-  ]
+  ],
+  "attention_shared_expert_dp": {
+    "observed_ranks": 12,
+    "all_12_ranks_resolved_shared_expert_dp": true,
+    "projection_layouts": [
+      {
+        "down": {
+          "disable_tp": true,
+          "input_size": 2048,
+          "input_size_per_partition": 2048,
+          "tp_size": 1,
+          "weight_shape": [
+            2048,
+            4096
+          ]
+        },
+        "gate_up": {
+          "disable_tp": true,
+          "input_size": 4096,
+          "input_size_per_partition": 4096,
+          "tp_size": 1,
+          "weight_shape": [
+            4096,
+            4096
+          ]
+        },
+        "is_sequence_parallel": true,
+        "weights_replicated": true,
+        "instances": 516
+      }
+    ]
+  },
+  "acceptance_passed": true
 }

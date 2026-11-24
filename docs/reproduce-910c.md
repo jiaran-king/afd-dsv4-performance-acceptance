@@ -25,10 +25,10 @@ P 节点使用 HTTP 7100、7101、8000–8002，D 节点使用 HTTP 7100。为�
 
 完整入口会自动准备运行时。可用 `--prepare-only` 提前检查和准备。入口从 Release 获取约 20 MB 的冻结请求包，并校验包及每个 split 的 SHA256。没有直连 GitHub 的环境可预先下载同一请求包，在 `site.env` 中设置 `WORKLOAD_ARCHIVE`。入口检出固定 AFD 版本并编译扩展，为 vLLM-Ascend 应用 CWS workspace 和 Mooncake KV 导出补丁，在专用运行时目录准备配套算子。已有同指纹的 CWS vendor 可以通过 `CWS_VENDOR_DIR` 指定。
 
-上机阶段在同一对节点依次运行双 EP8、12A+4F FULL 和 8A+8F 功能用例。双 EP8 的两个 P 实例分别通过 PD 冒烟后合用正式 proxy。每组性能回放的发压约 5 分钟，环境构建、模型加载、冒烟和预热另计。F 图计数通过现有健康检查在正式窗口前后采样。
+上机阶段在同一对节点依次运行双 EP8、12A+4F FULL 和 8A+8F 功能用例。双 EP8 的两个 P 实例分别通过 PD 冒烟后合用正式 proxy。12A+4F 的 A 侧加载基于 `bc80959` 的隔离副本，应用已实跑的启动校验补丁并开启共享专家 DP。启动时记录 12 个 A rank 的实际权重布局，F 图计数在正式窗口前后采样。每组性能回放的发压约 5 分钟，环境构建、模型加载、冒烟和预热另计。 [A 侧校验补丁](../cases/910c-dsv4-w4a8-rps4/patches/afd-shared-expert-dp.patch)
 
 若 P 容器也无法从 GitHub 检出 AFD，在有网络的机器准备固定提交的 Git checkout，再将其连同 `.git` 放在共享仓库的 `.runtime/afd-plugin` 下。准备入口会核对提交。 [AFD 提交](../cases/910c-dsv4-w4a8-rps4/case.json)
 
 ## 查看与复核
 
-查看 `runs/<run-id>/acceptance.json` 的 `acceptance_passed`、`reduction_pct` 和两个回放结果。四个 F rank 的图重放在 `ffn_full_replay`，8A+8F 的两次 PD 请求在 `afd8_pd_smoke`。预检、启动日志、实加载库、客户端计时及 KV 记录位于同一运行目录。 [验收标准](acceptance.md)
+查看 `runs/<run-id>/acceptance.json` 的 `acceptance_passed`、`reduction_pct` 和两个回放结果。A 侧共享专家布局在 `attention_shared_expert_dp`，四个 F rank 的图重放在 `ffn_full_replay`，8A+8F 的两次 PD 请求在 `afd8_pd_smoke`。预检、启动日志、实加载库、客户端计时及 KV 记录位于同一运行目录。 [验收标准](acceptance.md)

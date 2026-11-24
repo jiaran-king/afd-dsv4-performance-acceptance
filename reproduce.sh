@@ -155,5 +155,6 @@ node P python3 -B "$shared/scripts/audit.py" "$shared/.runtime/workload/formal-c
     "$run/baseline-formal" "$run/afd12-formal" \
     --baseline-warmup "$run/baseline-warmup" --afd-warmup "$run/afd12-warmup" \
     --ffn-graph "$run/afd12-p/graph-counters" --flexible-ratio "$run/afd8-p" \
+    --attention-layout "$run/afd12-p/attention-layout.json" \
     --check --output "$run/acceptance.json"
 printf 'Artifacts are in %s\n' "$run"

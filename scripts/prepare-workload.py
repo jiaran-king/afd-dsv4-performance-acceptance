@@ -78,7 +78,7 @@ def main():
     splits.update(load["asset_support_files"])
     archive = args.archive or (args.runtime / "downloads" / load["asset"])
     if args.archive is None:
-        url = f"{RELEASES}/{manifest['release']}/{load['asset']}"
+        url = f"{RELEASES}/{load['release']}/{load['asset']}"
         download(archive, url, load["asset_sha256"])
     output = args.runtime / "workload"
     unpack(archive, output, splits, load["asset_sha256"])
