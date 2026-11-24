@@ -21,7 +21,9 @@ case "$role" in
 esac
 export PYTHON_VLLM_PATH="$VLLM_SOURCE"
 export PYTHON_VLLM_ASCEND_PATH="$ASCEND_SOURCE"
-export PYTHON_AFD_PLUGIN_PATH="$runtime/afd-plugin"
+export PYTHON_AFD_PLUGIN_PATH="$afd_install"
+DSV4_AFD_REVISION=$(<"$afd_install/.source-commit")
+export DSV4_AFD_REVISION
 export PYTHONPATH="$PYTHON_VLLM_PATH:$PYTHON_VLLM_ASCEND_PATH:${PYTHONPATH:-}"
 export DSV4_SCRIPT_DIR="$skill_dir"
 run_root=$(cd -- "${CASE_RUN_DIR:?Set CASE_RUN_DIR}" && pwd -P)

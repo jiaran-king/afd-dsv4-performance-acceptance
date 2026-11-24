@@ -17,16 +17,17 @@ set -u
 
 mkdir -p "$runtime"
 afd="$runtime/afd-plugin"
+afd_commit=$(value afd)
 if [[ ! -d "$afd/.git" ]]; then
     staging=$(mktemp -d "$runtime/afd.XXXXXX")
     trap 'rm -rf -- "$staging"' EXIT
     git -C "$staging" init -q
-    git -C "$staging" fetch --depth 1 https://github.com/vllm-project/afd-plugin.git "$(value afd)"
+    git -C "$staging" fetch --depth 1 https://github.com/vllm-project/afd-plugin.git "$afd_commit"
     git -C "$staging" checkout --detach FETCH_HEAD
     mv -- "$staging" "$afd"
     trap - EXIT
 fi
-test "$(git -C "$afd" rev-parse HEAD)" = "$(value afd)"
+test "$(git -C "$afd" rev-parse HEAD)" = "$afd_commit"
 
 overlay="$runtime/vllm-ascend-cws"
 for patch in "$case_dir"/patches/*.patch; do
@@ -41,7 +42,7 @@ PY
 done
 bash "$root/scripts/prepare-cws-overlay.sh" "$ASCEND_SOURCE" "$runtime" "$case_dir/patches"
 
-export PYTHONPATH="$afd:$overlay:$VLLM_SOURCE:${PYTHONPATH:-}"
+export PYTHONPATH="$overlay:$VLLM_SOURCE:${PYTHONPATH:-}"
 if [[ -z "${CWS_VENDOR_DIR:-}" ]]; then
     CWS_VENDOR_DIR="$runtime/cws-native/vendors/cws32k_transformer"
     if [[ ! -f "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" ]]; then
@@ -79,18 +80,41 @@ if [[ ! -d "$skill_dir" ]]; then
     trap - EXIT
 fi
 
-# Install into the P container. The runtime tree remains isolated from the image source.
-(
-    cd "$afd"
-    SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_AFD_PLUGIN=0.30.0rc1.dev11+gbc80959 \
-        SOC_VERSION=910c AFD_BUILD_ASCEND_OPS=1 \
-        python3 -m pip install --no-deps --no-build-isolation -e .
-)
+# CANN deletes temporary kernel files during compilation. Keep that work on
+# the P container's local disk and publish only the installed wheel.
+extension="afd_plugin/_C_ascend$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')"
+opapi=afd_plugin/_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so
+if [[ ! -s "$afd_install/.source-commit" || "$(<"$afd_install/.source-commit")" != "$afd_commit" ||
+      ! -s "$afd_install/$extension" || ! -s "$afd_install/$opapi" ]]; then
+    build=$(mktemp -d /tmp/afd-build.XXXXXX)
+    staging=$(mktemp -d "$runtime/afd-install.XXXXXX")
+    trap 'rm -rf -- "$build" "$staging"' EXIT
+    mkdir "$build/source"
+    git -C "$afd" archive "$afd_commit" | tar -C "$build/source" -xf -
+    (
+        cd "$build/source"
+        SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_AFD_PLUGIN=0.30.0rc1.dev11+gbc80959 \
+            SOC_VERSION=910c AFD_BUILD_ASCEND_OPS=1 TMPDIR="$build" \
+            python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir "$build" .
+    )
+    wheels=("$build"/vllm_afd_plugin-*.whl)
+    [[ "${#wheels[@]}" -eq 1 && -f "${wheels[0]}" ]]
+    python3 -m pip install --no-index --no-deps --target "$staging" "${wheels[0]}"
+    test -s "$staging/$extension"
+    test -s "$staging/$opapi"
+    printf '%s\n' "$afd_commit" > "$staging/.source-commit"
+    rm -rf -- "$afd_install"
+    mv -- "$staging" "$afd_install"
+    rm -rf -- "$build"
+    trap - EXIT
+else
+    printf 'Using the prepared AFD installation for %s\n' "$afd_commit"
+fi
 
 # Reproduce the A-only source copy used by the shared-expert DP run.
 staging=$(mktemp -d "$runtime/afd-attention.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
-tar -C "$afd" --exclude=__pycache__ -cf - afd_plugin | tar -C "$staging" -xf -
+tar -C "$afd_install" --exclude=__pycache__ -cf - afd_plugin | tar -C "$staging" -xf -
 GIT_CEILING_DIRECTORIES="$runtime" git -C "$staging" apply "$case_dir/patches/afd-shared-expert-dp.patch"
 validator="$staging/afd_plugin/compat/npu/feature_validation.py"
 test "$(sha256sum "$validator" | cut -d ' ' -f 1)" = "$(value afd_attention_validation_sha256)"
@@ -100,4 +124,4 @@ trap - EXIT
 
 sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" \
     "$attention_source/afd_plugin/compat/npu/feature_validation.py" \
-    "$afd/afd_plugin/_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so"
+    "$afd_install/$opapi"

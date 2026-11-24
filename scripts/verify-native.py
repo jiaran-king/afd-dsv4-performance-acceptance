@@ -15,7 +15,7 @@ def main():
     runtime = Path(runtime)
     maps = json.loads(Path(evidence).read_text())
     cws = Path((runtime / "cws-vendor.path").read_text().strip()).resolve()
-    afd = runtime / "afd-plugin/afd_plugin"
+    afd = runtime / "afd-install/afd_plugin"
     found = {Path(key).resolve(): sha for key, sha in maps["library_sha256"].items()}
     cws_library = cws / "op_api/lib/libcust_opapi.so"
     expected = [cws_library]
