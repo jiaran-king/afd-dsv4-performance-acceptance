@@ -2,9 +2,9 @@
 
 正式验收使用 [`v0.3.0`](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.3.0)。
 
-在**一台 Ascend 910C** 上顺序比较原生双 EP8 8K 与 AFD 12A+4F 16K。两组使用同一镜像、权重和冻结请求，每条输出 **1 token**。验收按现场同轮基线计算平均 TTFT 降幅，要求达到 **20%**。
+性能验收在**一台 Ascend 910C** 上顺序比较原生双 EP8 8K 与 AFD 12A+4F 16K。两组使用同一镜像、权重和冻结请求，每条输出 **1 token**。验收按现场同轮基线计算平均 TTFT 降幅，要求达到 **20%**。
 
-使用验收镜像 `afd-910c-acceptance:single-rc2`。已有验收镜像和权重时，从[启动容器](docs/build-environment-910c.md#3-启动容器)开始。需要从官方底座构建镜像时，按[环境构建指南](docs/build-environment-910c.md)操作。
+先[获取正式版本仓库](docs/build-environment-910c.md#获取验收仓)。已有验收镜像 `afd-910c-acceptance:single-rc2` 和权重时，接着[启动容器](docs/build-environment-910c.md#3-启动容器)。需要准备验收镜像时，按指南[从官方底座回退 vLLM-Ascend](docs/build-environment-910c.md#1-从官方镜像回退-vllm-ascend)。
 
 ## 运行环境与版本
 
@@ -13,7 +13,7 @@
 | 运行镜像底座 | aarch64 · A3/openEuler 24.03 · Python 3.12 · CANN 9.2.1 | `quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler`。[Dockerfile](docker/Dockerfile.a3) |
 | 模型权重 | DeepSeek-V4-Flash W4A8 + DSpark，revision `59b8e36964b964140dad8e580e14247564744ac9` | [ModelScope 模型 UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) |
 | vLLM | 官方标签 `v0.30.0` · `ced6857afa0ea7b2e3f0846a62e1394e90f15607` | [官方提交](https://github.com/vllm-project/vllm/commit/ced6857afa0ea7b2e3f0846a62e1394e90f15607) |
-| vLLM-Ascend | 构建提交 `8d4409d6256d8a6729140ddcc0d1889e3f96cdd6` | [获取起点 `v0.30.0rc1`](https://github.com/vllm-project/vllm-ascend/tree/v0.30.0rc1) · [官方提交](https://github.com/vllm-project/vllm-ascend/commit/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6) |
+| vLLM-Ascend | 回退目标 `8d4409d6256d8a6729140ddcc0d1889e3f96cdd6` | [官方源码提交](https://github.com/vllm-project/vllm-ascend/commit/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6) · [上游版本参照 `v0.30.0rc1`](https://github.com/vllm-project/vllm-ascend/tree/v0.30.0rc1) |
 | 推理依赖 | PyTorch `2.10.0` · TorchNPU `2.10.0.post4` · Triton Ascend `3.2.2` | [固定 Ascend 提交的依赖表](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/requirements.txt) |
 | AFD | 官方标签 `0.30.0rc2` · `98f45bbff76bb5165789313c1076fea5c92d8c44` | [官方标签](https://github.com/vllm-project/afd-plugin/tree/0.30.0rc2) · [共享专家 DP 修复提交](https://github.com/vllm-project/afd-plugin/commit/98f45bbff76bb5165789313c1076fea5c92d8c44) |
 
