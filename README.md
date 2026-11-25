@@ -10,9 +10,11 @@
 | 模型权重 | DeepSeek-V4-Flash W4A8 + DSpark，revision `59b8e36964b964140dad8e580e14247564744ac9` | [ModelScope 模型 UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) |
 | vLLM | 官方标签 `v0.30.0` · `ced6857afa0ea7b2e3f0846a62e1394e90f15607` | [官方提交](https://github.com/vllm-project/vllm/commit/ced6857afa0ea7b2e3f0846a62e1394e90f15607) |
 | vLLM-Ascend | 构建提交 `8d4409d6256d8a6729140ddcc0d1889e3f96cdd6` | [获取起点 `v0.30.0rc1`](https://github.com/vllm-project/vllm-ascend/tree/v0.30.0rc1) · [官方提交](https://github.com/vllm-project/vllm-ascend/commit/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6) |
-| AFD | `release/v0.30.0rc2` · `98f45bbff76bb5165789313c1076fea5c92d8c44` | [官方提交，包含共享专家 DP 修复](https://github.com/vllm-project/afd-plugin/commit/98f45bbff76bb5165789313c1076fea5c92d8c44) |
+| AFD | 官方标签 `0.30.0rc2` · `98f45bbff76bb5165789313c1076fea5c92d8c44` | [官方标签](https://github.com/vllm-project/afd-plugin/tree/0.30.0rc2) · [共享专家 DP 修复提交](https://github.com/vllm-project/afd-plugin/commit/98f45bbff76bb5165789313c1076fea5c92d8c44) |
 
-AFD 的 `v0.30.0rc2` 标签指向修复前的 `39017a1`，本用例固定该发布分支合入修复后的 `98f45bb`。vLLM-Ascend 的构建提交在 `v0.30.0rc1` 的历史中，实测包版本为 `0.19.1rc2.dev2448+g8d4409d62`。[AFD RC2 标签](https://github.com/vllm-project/afd-plugin/tree/v0.30.0rc2)
+验收脚本按表中的提交号获取 AFD。带 `v` 的旧标签 `v0.30.0rc2` 指向修复前的 `39017a1`。[旧 AFD 标签](https://github.com/vllm-project/afd-plugin/tree/v0.30.0rc2)
+
+vLLM-Ascend 的构建提交在 `v0.30.0rc1` 的历史中，实测包版本为 `0.19.1rc2.dev2448+g8d4409d62`。
 
 实测使用的 Ascend 驱动为 `25.5.1.1`，`torch-npu` 为 `2.10.0.post4`。现场已有兼容镜像和同版权重时可以直接使用，验收会记录实际版本。[镜像构建和权重下载](docs/reproduce-910c.md#从公开来源准备镜像和权重) · [用例配置](cases/910c-dsv4-w4a8-rps4/case.json)
 
