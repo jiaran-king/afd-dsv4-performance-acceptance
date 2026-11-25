@@ -40,28 +40,32 @@ def download(path, url, expected):
         pending.unlink(missing_ok=True)
 
 
-def unpack(path, output, split_files):
-    if output.exists():
-        for name, sha256 in split_files.items():
-            if sha(output / name) != sha256:
-                raise ValueError(f"Cached payload checksum mismatch: {output / name}")
-        return
+def unpack(path, output, split_files, optional_files=()):
+    if output.is_dir():
+        try:
+            if all(sha(output / name) == digest for name, digest in split_files.items()):
+                return
+        except OSError:
+            pass
     output.parent.mkdir(parents=True, exist_ok=True)
+    allowed = split_files.keys() | set(optional_files)
     with tempfile.TemporaryDirectory(dir=output.parent) as scratch, tarfile.open(path, "r:gz") as archive:
-        stage = Path(scratch) / output.name
+        stage = Path(scratch) / "prepared"
         seen = set()
         for member in archive:
-            if member.name not in split_files or member.name in seen or not member.isfile():
+            if member.name not in allowed or member.name in seen or not member.isfile():
                 raise ValueError(f"Unexpected archive entry: {member.name}")
             dest = stage / member.name
             dest.parent.mkdir(parents=True, exist_ok=True)
             with archive.extractfile(member) as source, dest.open("wb") as target:
                 shutil.copyfileobj(source, target)
-            if sha(dest) != split_files[member.name]:
+            if member.name in split_files and sha(dest) != split_files[member.name]:
                 raise ValueError(f"Request payload checksum mismatch: {member.name}")
             seen.add(member.name)
-        if seen != set(split_files):
+        if not split_files.keys() <= seen:
             raise ValueError("Incomplete request payload")
+        if output.exists() or output.is_symlink():
+            output.rename(Path(scratch) / "previous")
         stage.rename(output)
 
 
@@ -72,14 +76,15 @@ def main():
     args = parser.parse_args()
     manifest = json.loads(LOCK.read_text())
     load = manifest["load"]
-    splits = {f"{key.replace('_', '-')}/requests.jsonl": value["sha256"] for key, value in load["splits"].items()}
-    splits.update(load["asset_support_files"])
+    splits = {f"{key.replace('_', '-')}/requests.jsonl": load["splits"][key]["sha256"]
+              for key in ("warmup", "formal_candidate")}
+    optional_files = {"qualification/requests.jsonl", *load["asset_support_files"]}
     archive = args.archive or (args.runtime / "downloads" / load["asset"])
     if args.archive is None:
         url = f"{RELEASES}/{load['release']}/{load['asset']}"
         download(archive, url, load["asset_sha256"])
     output = args.runtime / "workload"
-    unpack(archive, output, splits)
+    unpack(archive, output, splits, optional_files)
     print(f"Verified frozen inputs at {output}")
 
 

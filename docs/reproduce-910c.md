@@ -4,9 +4,9 @@
 
 ## 1. 准备环境
 
-- **两台 Ascend 910C。** P 负责 Prefill，D 负责 Decode。两端各分配 **8 张物理卡、16 个逻辑 DIE**，测试期间独占这些设备。
-- **相同镜像和权重。** 两端使用交付指定的 aarch64 镜像，挂载同一版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。预检会核对固定源码、CANN 和解析后的模型 JSON 内容。 [运行版本与模型指纹](../cases/910c-dsv4-w4a8-rps4/case.json)
-- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓，P 端可写入。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。 [端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L85-L99)
+- **两台 Ascend 910C。** P 负责 Prefill，D 负责 Decode。按现场分配确认两端各有 **8 张物理卡、16 个逻辑 DIE** 供本次测试独占。
+- **相同镜像和权重。** 两端使用交付指定的 aarch64 镜像和同一版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。按交付版本确认两端的权重挂载。预检核对固定源码、CANN、模型 JSON 内容及权重分片是否齐全。 [运行版本与模型指纹](../cases/910c-dsv4-w4a8-rps4/case.json)
+- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓。P 能创建运行目录，P、D 都能向这个目录写入。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。 [端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L85-L99)
 
 ## 2. 克隆仓库并填写 `site.env`
 
@@ -21,7 +21,7 @@ git checkout --detach "$ACCEPTANCE_REF"
 cp site.env.example site.env
 ~~~
 
-在 **P、D 两个容器内分别查现场值**，然后编辑 `site.env`。
+在 **P、D 两个容器内分别查现场值**，然后编辑共享目录中的 `site.env`。预检、准备和启动都读取这份配置。
 
 | 字段 | 怎么查、怎么填 |
 | --- | --- |
@@ -65,6 +65,8 @@ D_CONTAINER=afd-d
 命令检查环境并准备固定源码、补丁和算子，随后在同一对节点上跑**双 EP8 8K 基线、12A+4F AFD 性能对照和 8A+8F 配比检查**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。 [验收配置与判定](acceptance.md)
 
 打开正式运行生成的 `runs/<run-id>/acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对**现场同轮双 EP8 基线**的平均 TTFT 降幅，门槛为**至少 20%**。若脚本中途退出，保留终端报错和该次运行目录供定位。
+
+若报错提示运行锁 `runs/.active`，按给出的运行目录和 PID 文件在对应容器确认上一轮服务已退出，再清理锁并重跑。
 
 若双 EP8 已完成，使用原 P/D 容器、同一份权重和设备配置，可以从同一次验收续跑 AFD 与配比检查。将 `RUN_ID` 填为原运行目录名。脚本复核原基线并在新的运行目录写入验收结果。
 

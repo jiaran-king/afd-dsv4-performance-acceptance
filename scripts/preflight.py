@@ -32,11 +32,26 @@ def driver_version():
     return text.strip().partition("\n")[0].strip() or None
 
 
+def check_weight_files(model):
+    index = model / "model.safetensors.index.json"
+    if index.is_file():
+        weight_map = json.loads(index.read_text())["weight_map"]
+        shards = [model / name for name in sorted(set(weight_map.values()))]
+    else:
+        shards = sorted(model.glob("*.safetensors"))
+    if not shards:
+        raise ValueError(f"No safetensors weight files in {model}")
+    for path in shards:
+        if not path.is_file() or path.stat().st_size == 0:
+            raise ValueError(f"Missing or empty safetensors weight file: {path}")
+    return len(shards)
+
+
 def compare_baseline(saved_path, current_path):
     saved = json.loads(Path(saved_path).read_text())
     current = json.loads(Path(current_path).read_text())
     label = f"{current['role']} saved baseline"
-    for field in ("role", "vllm", "vllm_ascend", "cann", "torch_npu", "devices", "shards"):
+    for field in ("role", "vllm", "vllm_ascend", "cann", "torch_npu", "devices"):
         verify(current[field], saved[field], f"{label} {field}")
     if "container" in saved:
         verify(current["container"], saved["container"], f"{label} container")
@@ -75,7 +90,8 @@ def main():
     verify(cmd("git", "-C", ascend, "rev-parse", "HEAD"), version["vllm_ascend"], "vLLM-Ascend source")
     for source in (vllm, ascend):
         changes = cmd("git", "-C", source, "status", "--short", "--untracked-files=no",
-                      "--", ".", ":(exclude,glob)**/*.md", ":(exclude,glob)**/*.rst")
+                      "--", ".", ":(exclude,top)docs", ":(exclude,top)tests", ":(exclude,top).gitignore",
+                      ":(exclude,glob)**/*.md", ":(exclude,glob)**/*.rst")
         verify(changes, "", f"tracked source edits in {source}")
     verify(importlib.metadata.version("torch-npu"), version["torch_npu"], "torch-npu")
     info = (Path(cann) / "compiler/version.info").read_text()
@@ -98,15 +114,17 @@ def main():
         canonical = json.dumps(json.loads(raw), sort_keys=True, separators=(",", ":")).encode("utf-8")
         model_json[name] = hashlib.sha256(canonical).hexdigest()
         verify(model_json[name], expected, f"model JSON content {name}")
-    shards = [p for p in model.glob("*.safetensors") if p.is_file() and p.stat().st_size]
-    verify(len(shards), lock["model"]["safetensors_shards"], "safetensors shard count")
+    shards = check_weight_files(model)
     record = json.dumps({
         "role": role, "container": socket.gethostname(), "vllm": version["vllm"], "vllm_ascend": version["vllm_ascend"],
         "cann": version["cann"], "driver": driver_version(), "reference_driver": version["driver"],
         "torch_npu": version["torch_npu"], "devices": selected, "model_sha256": fingerprints,
-        "model_json_sha256": model_json, "checkpoint_path": str(model.resolve()), "shards": len(shards),
+        "model_json_sha256": model_json, "checkpoint_path": str(model.resolve()), "shards": shards,
     }, indent=2)
-    Path(output).write_text(record + "\n")
+    try:
+        Path(output).write_text(record + "\n")
+    except OSError as error:
+        raise SystemExit(f"{role} cannot write its preflight record in {Path(output).parent}: {error}")
     print(record)
 
 

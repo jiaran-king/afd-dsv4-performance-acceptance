@@ -36,8 +36,7 @@
       "config.json": "24a49aac9e47d3e9f14b0a7db12ed9a8e753a6ce4c3f19e5cfa151fb55065cd7",
       "quant_model_description.json": "31f03834d27784cb969b629b943015baf7a615ad361607a47780cc86e0952861",
       "tokenizer.json": "b987b271087f382191dc6000ce3bb5f4dac055e4db542e4a45ba0f71abc6513a"
-    },
-    "safetensors_shards": 42
+    }
   },
   "load": {
     "release": "v0.1.0",

@@ -57,8 +57,13 @@ def prefill_phases(run):
                 result[phase, aggregate] += float(value)
         return result
 
-    before = totals(run.glob("pre-71*.metrics"))
-    after = totals(run.glob("post-71*.metrics"))
+    pairs = []
+    for pre in run.glob("pre-71*.metrics"):
+        post = run / pre.name.replace("pre-", "post-", 1)
+        if pre.stat().st_size and post.is_file() and post.stat().st_size:
+            pairs.append((pre, post))
+    before = totals(pre for pre, _ in pairs)
+    after = totals(post for _, post in pairs)
     result = {}
     for phase in ("queue", "prefill"):
         count = after[phase, "count"] - before[phase, "count"]

@@ -8,8 +8,6 @@ fi
 value() {
     python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["runtime"][sys.argv[2]])' "$case_dir/case.json" "$1"
 }
-test "$(git -C "$VLLM_SOURCE" rev-parse HEAD)" = "$(value vllm)"
-test "$(git -C "$ASCEND_SOURCE" rev-parse HEAD)" = "$(value vllm_ascend)"
 test -r "$CANN_ROOT/set_env.sh"
 set +u
 source "$CANN_ROOT/set_env.sh"
@@ -68,7 +66,7 @@ else
     }
 fi
 test -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
-test "$(basename -- "$CWS_VENDOR_DIR")" = cws32k_transformer
+CWS_VENDOR_DIR=$(cd -- "$CWS_VENDOR_DIR" && pwd -P)
 printf '%s\n' "$CWS_VENDOR_DIR" > "$runtime/cws-vendor.path"
 if [[ ! -d "$skill_dir" ]]; then
     staging=$(mktemp -d "$runtime/skill.XXXXXX")

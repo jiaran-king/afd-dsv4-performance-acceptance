@@ -3,6 +3,7 @@
 import hashlib
 import json
 import sys
+import sysconfig
 from pathlib import Path
 
 
@@ -17,20 +18,18 @@ def main():
     cws = Path((runtime / "cws-vendor.path").read_text().strip()).resolve()
     afd = runtime / "afd-install/afd_plugin"
     found = {Path(key).resolve(): sha for key, sha in maps["library_sha256"].items()}
-    cws_library = cws / "op_api/lib/libcust_opapi.so"
+    cws_library = (cws / "op_api/lib/libcust_opapi.so").resolve()
     expected = [cws_library]
-    if group == "baseline" and any("/afd_plugin/" in str(path) for path in found):
+    if group == "baseline" and any(path != cws_library and "/afd_plugin/" in str(path) for path in found):
         raise ValueError("The baseline mapped an AFD library")
     if group != "baseline":
+        extension = f"_C_ascend{sysconfig.get_config_var('EXT_SUFFIX')}"
         packages = [afd]
         if group == "afd12":
             packages.append(runtime / "afd-attention/afd_plugin")
         for package in packages:
             expected.append(package / "_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so")
-            extensions = list(package.glob("_C_ascend.*.so"))
-            if len(extensions) != 1:
-                raise ValueError(f"Expected one AFD extension under {package}")
-            expected += extensions
+            expected.append(package / extension)
     for path in expected:
         if found.get(path.resolve()) != digest(path):
             raise ValueError(f"The expected library was not mapped: {path}")

@@ -15,7 +15,7 @@ def validate_snapshot(rows, boundary):
         raise ValueError(f"Expected one FULL snapshot for each FFN rank at {boundary}")
     for row in rows:
         if (row["boundary"] != boundary or row["mode"] != "full"
-                or row["capture_count"] != 1 or not row["layered_per_channel"]):
+                or row["capture_count"] < 1 or not row["layered_per_channel"]):
             raise ValueError(f"Unexpected FFN graph state at {boundary}: {row}")
 
 

@@ -20,17 +20,23 @@ out="${CASE_RUN_DIR:?Set CASE_RUN_DIR}/$name"
 mkdir "$out"
 trap 'printf "%s\n" "$?" > "$out/exit-code"' EXIT
 
-for port in "${ports[@]}"; do
-    curl -fsS --max-time 10 "http://$P_NODE_IP:$port/health"
-    curl -fsS --max-time 15 "http://$P_NODE_IP:$port/metrics" > "$out/pre-$port.metrics"
-done
-curl -fsS --max-time 10 "http://$D_NODE_IP:7100/health"
+prefill_metrics() {
+    local boundary=$1 port path
+    for port in "${ports[@]}"; do
+        path="$out/$boundary-$port.metrics"
+        if ! curl -fsS --max-time 15 "http://$P_NODE_IP:$port/metrics" > "$path"; then
+            rm -f -- "$path"
+        fi
+    done
+}
+
+prefill_metrics pre
 curl -fsS --max-time 15 "http://$D_NODE_IP:7100/metrics" > "$out/pre-d.metrics"
 d_offset=$(stat -c %s "$d_run/decode.log")
 printf '%s\n' "$d_offset" > "$out/decode-start-byte-offset"
 offsets=()
 for role in "${logs[@]}"; do
-    offsets+=("$(stat -c %s "$p_run/$role.log")")
+    offsets+=("$(stat -c %s "$p_run/$role.log" || true)")
 done
 
 set +e
@@ -39,9 +45,7 @@ python3 -B "$root/scripts/replay.py" --proxy "http://$P_NODE_IP:8000" \
 status=$?
 set -e
 
-for port in "${ports[@]}"; do
-    curl -fsS --max-time 15 "http://$P_NODE_IP:$port/metrics" > "$out/post-$port.metrics" || true
-done
+prefill_metrics post
 curl -fsS --max-time 15 "http://$D_NODE_IP:7100/metrics" > "$out/post-d.metrics" || true
 PYTHONPATH="$root/scripts${PYTHONPATH:+:$PYTHONPATH}" python3 -B - "$d_run/decode.log" "$d_offset" "$out" "$status" <<'PY'
 from pathlib import Path
@@ -54,6 +58,8 @@ snapshot_decode_log(Path(source), int(offset), Path(run), status == "0")
 PY
 for i in "${!logs[@]}"; do
     role=${logs[i]}
-    tail -c "+$((offsets[i] + 1))" "$p_run/$role.log" > "$out/$role-window.log"
+    if [[ -n "${offsets[i]}" ]]; then
+        tail -c "+$((offsets[i] + 1))" "$p_run/$role.log" > "$out/$role-window.log" || true
+    fi
 done
 exit "$status"

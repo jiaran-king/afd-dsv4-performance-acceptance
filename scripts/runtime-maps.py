@@ -7,22 +7,23 @@ import os
 from pathlib import Path
 
 
-def mapped_libraries(maps):
+def mapped_libraries(maps, cws_library):
     libraries = set()
+    cws_path = str(cws_library)
     for line in maps.splitlines():
         fields = line.split(maxsplit=5)
         if len(fields) != 6:
             continue
         path = fields[5]
-        if "/afd_plugin/_C_ascend." in path or (
-            ("/vendors/afd-plugin/" in path or "/vendors/cws32k_transformer/" in path)
-            and "/libcust_opapi.so" in path
+        if path == cws_path or "/afd_plugin/_C_ascend." in path or (
+            "/libcust_opapi.so" in path
+            and ("/vendors/afd-plugin/" in path or Path(path).resolve() == cws_library)
         ):
             libraries.add(path)
     return sorted(libraries)
 
 
-def collect(run):
+def collect(run, cws_library):
     identity = os.fsencode(f"LOG_DIR={run}")
     processes = []
     for entry in Path("/proc").iterdir():
@@ -32,7 +33,7 @@ def collect(run):
             env = (entry / "environ").read_bytes().split(b"\0")
             if identity not in env:
                 continue
-            libraries = mapped_libraries((entry / "maps").read_text())
+            libraries = mapped_libraries((entry / "maps").read_text(), cws_library)
             if not libraries:
                 continue
             name = (entry / "comm").read_text().strip()
@@ -57,7 +58,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
     args = parser.parse_args()
-    processes = collect(args.run.resolve(strict=True))
+    runtime = Path(__file__).resolve().parents[1] / ".runtime"
+    cws_vendor = Path((runtime / "cws-vendor.path").read_text().strip())
+    cws_library = (cws_vendor / "op_api/lib/libcust_opapi.so").resolve()
+    processes = collect(args.run.resolve(strict=True), cws_library)
     if not processes:
         raise RuntimeError("No mapped AFD native libraries found for this run")
     paths = {path for process in processes for path in process["mapped_custom_ops"]}

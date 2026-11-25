@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(cd -- "$(dirname -- "$0")" && pwd)
+root=$(cd -- "$(dirname -- "$0")" && pwd -P)
 usage() {
     printf '%s\n' "Usage: ./reproduce.sh --site site.env [--prepare-only]"
     printf '%s\n' "       ./reproduce.sh --site site.env --resume-afd <run-id>"
@@ -9,18 +9,20 @@ usage() {
 
 if [[ ${1:-} == --help ]]; then usage; exit 0; fi
 if [[ ${1:-} != --site || $# -lt 2 ]]; then usage >&2; exit 2; fi
-site=$2
 mode=${3:-}
 case "$mode" in
     ""|--prepare-only) [[ $# -le 3 ]] || { usage >&2; exit 2; } ;;
     --resume-afd) [[ $# -eq 4 && "$4" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9]+$ ]] || { usage >&2; exit 2; } ;;
     *) usage >&2; exit 2 ;;
 esac
+site=$(cd -- "$(dirname -- "$2")" && printf '%s/%s\n' "$(pwd -P)" "$(basename -- "$2")")
 source "$site"
 
 shared=${SHARED_ROOT:-$root}
 case "$shared" in /*) ;; *) echo "SHARED_ROOT must be absolute inside both containers." >&2; exit 2 ;; esac
-remote_site=${SITE_REMOTE_FILE:-$shared/site.env}
+default_site="$shared/site.env"
+if [[ "${shared%/}" == "$root" ]]; then default_site=$site; fi
+remote_site=${SITE_REMOTE_FILE:-$default_site}
 run="$shared/runs/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 baseline_run=$run
 arms=(baseline afd12 afd8)
@@ -94,17 +96,28 @@ node P test -r "$remote_site"
 node D test -r "$remote_site"
 node P mkdir -p "$shared/runs"
 lock="$shared/runs/.active"
+
+show_run_pids() {
+    printf 'Run directory: %s\nPID files: %s/*/pids/*.pid\n' "$1" "$1" >&2
+}
+
 if ! node P mkdir "$lock"; then
-    echo "A run holds $lock. Check its owner and processes before retrying." >&2
+    printf 'Cannot acquire the run lock at %s.\n' "$lock" >&2
+    if owner=$(node P cat "$lock/run-dir" 2>/dev/null) && [[ -n "$owner" ]]; then
+        show_run_pids "$owner"
+    else
+        printf 'Previous run PID files: %s/runs/*/*/pids/*.pid\n' "$shared" >&2
+    fi
     exit 1
 fi
 finish() {
     status=$?
     trap - EXIT
     if stop_group; then
-        node P rmdir "$lock" || status=1
+        node P bash -c 'rm -f -- "$1/run-dir" && rmdir -- "$1"' bash "$lock" || status=1
     else
-        echo "Cleanup needs attention. Use the run PID/log directories at $run." >&2
+        printf 'Cleanup needs attention. The run lock is at %s.\n' "$lock" >&2
+        show_run_pids "$run"
         status=1
     fi
     exit "$status"
@@ -112,29 +125,38 @@ finish() {
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+node P bash -c 'printf "%s\n" "$2" > "$1/run-dir"' bash "$lock" "$run"
 node P mkdir "$run"
 node D test -d "$run"
 
 for role in P D; do
-    case "$role" in
-        P) model=${P_MODEL_DIR:?}; devices=${P_DEVICES:?} ;;
-        D) model=${D_MODEL_DIR:?}; devices=${D_DEVICES:?} ;;
-    esac
     case "$mode:$role" in
         --prepare-only:*) ports=() ;;
         *:D) ports=(7100) ;;
         --resume-afd:P) ports=(7100 7101 8000) ;;
         :P) ports=(7100 7101 8000 8001 8002) ;;
     esac
-    node "$role" python3 -B "$shared/scripts/preflight.py" "$role" "$model" "$devices" \
-        "${VLLM_SOURCE:-/vllm-workspace/vllm}" "${ASCEND_SOURCE:-/vllm-workspace/vllm-ascend}" \
-        "${CANN_ROOT:-/usr/local/Ascend/cann}" "${P_NODE_IP:?}" "${D_NODE_IP:?}" "$run/$role-preflight.json" \
-        "${ports[@]+"${ports[@]}"}"
+    node "$role" env "SITE_FILE=$remote_site" bash -eu -c '
+        source "$1/scripts/environment.sh"
+        role=$2
+        output=$3
+        shift 3
+        case "$role" in
+            P) model=$P_MODEL_DIR; devices=$P_DEVICES ;;
+            D) model=$D_MODEL_DIR; devices=$D_DEVICES ;;
+        esac
+        exec python3 -B "$root/scripts/preflight.py" "$role" "$model" "$devices" \
+            "$VLLM_SOURCE" "$ASCEND_SOURCE" "$CANN_ROOT" "$P_NODE_IP" "$D_NODE_IP" "$output" "$@"
+    ' bash "$shared" "$role" "$run/$role-preflight.json" "${ports[@]+"${ports[@]}"}"
 done
 
-asset_args=()
-if [[ -n "${WORKLOAD_ARCHIVE:-}" ]]; then asset_args=(--archive "$WORKLOAD_ARCHIVE"); fi
-node P python3 -B "$shared/scripts/prepare-workload.py" "${asset_args[@]+"${asset_args[@]}"}"
+node P env "SITE_FILE=$remote_site" bash -eu -c '
+    source "$1/scripts/environment.sh"
+    if [[ -n ${WORKLOAD_ARCHIVE:-} ]]; then
+        exec python3 -B "$root/scripts/prepare-workload.py" --archive "$WORKLOAD_ARCHIVE"
+    fi
+    exec python3 -B "$root/scripts/prepare-workload.py"
+' bash "$shared"
 workload="$shared/.runtime/workload/formal-candidate/requests.jsonl"
 if [[ "$mode" == --resume-afd ]]; then
     for role in P D; do
