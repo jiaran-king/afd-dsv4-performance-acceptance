@@ -1,0 +1,21 @@
+README.md
+  s_a6678aeb6e34fc::t_43f062f72815ed 7
+docs/build-environment-910c.md
+  s_a6678aeb6e34fc::t_43f062f72815ed 5,14-16,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "48605db9c593ac75747be2a0020587ace294438d",
+  "prompts": {},
+  "sessions": {
+    "s_a6678aeb6e34fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a21069-b54f-7c10-b60a-0681eed07eb7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
