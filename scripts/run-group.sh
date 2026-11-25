@@ -32,9 +32,7 @@ done
 endpoints=(--endpoint http://127.0.0.1:7100)
 if [[ "$group" == baseline ]]; then endpoints+=(--endpoint http://127.0.0.1:7101); fi
 if [[ "$mode" == --gsm8k ]]; then
-    dataset=()
-    if [[ -n ${GSM8K_FILE:-} ]]; then dataset=(--dataset "$GSM8K_FILE"); fi
-    python3 -B "$root/scripts/gsm8k.py" run "${dataset[@]}" "${endpoints[@]}" \
+    python3 -B "$root/scripts/gsm8k.py" run "${endpoints[@]}" \
         --out "$run/$group-gsm8k"
     exit 0
 fi

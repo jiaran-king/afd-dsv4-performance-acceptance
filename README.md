@@ -1,8 +1,10 @@
 # DeepSeek-V4-Flash W4A8 AFD 性能验收
 
+正式验收使用 [`v0.3.0`](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.3.0)。
+
 在**一台 Ascend 910C** 上顺序比较原生双 EP8 8K 与 AFD 12A+4F 16K。两组使用同一镜像、权重和冻结请求，每条输出 **1 token**。验收按现场同轮基线计算平均 TTFT 降幅，要求达到 **20%**。
 
-已有约定镜像和权重时，从填写 `site.env` 开始。需要准备镜像时，按环境构建指南拉取官方底座、构建并核对容器。[上机指南](docs/reproduce-910c.md) · [构建 910C 验收环境](docs/build-environment-910c.md)
+使用验收镜像 `afd-910c-acceptance:single-rc2`。已有验收镜像和权重时，从[启动容器](docs/build-environment-910c.md#3-启动容器)开始。需要从官方底座构建镜像时，按[环境构建指南](docs/build-environment-910c.md)操作。
 
 ## 运行环境与版本
 
@@ -19,7 +21,7 @@
 
 ## 上机验收
 
-在 **910C 容器的验收仓根目录**运行。
+在 **910C 容器的验收仓根目录**按[上机指南](docs/reproduce-910c.md)填写 `site.env`，然后执行性能验收。
 
 ~~~bash
 ./reproduce.sh --site site.env
@@ -27,7 +29,7 @@
 
 默认性能用例为双 EP8 8K 对 **12A+4F、A 侧 DP3/TP4、A/F MBT 16K、F FULL、A 侧 `enable_shared_expert_dp=true`**。另跑 8A+8F 单机首 token 冒烟验证灵活配比。结果写入 `runs/<run-id>/acceptance.json`，同目录保留逐请求计时和运行证据。
 
-GSM8K 使用独立入口，报告基线和 AFD 的数值答案正确率及差值。
+用下列命令验收 GSM8K。双 EP8 和 AFD 分别跑同一批前 300 题的 0-shot 和 8-shot。结果在 `runs/<run-id>/gsm8k.json`，两套都满足 AFD 最多落后双 EP8 **1.5 个百分点**才通过。
 
 ~~~bash
 ./reproduce.sh --site site.env --gsm8k

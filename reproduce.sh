@@ -69,11 +69,7 @@ if [[ "$mode" != --gsm8k ]]; then
     if [[ -n ${WORKLOAD_ARCHIVE:-} ]]; then archive=(--archive "$WORKLOAD_ARCHIVE"); fi
     python3 -B "$root/scripts/prepare-workload.py" "${archive[@]}"
 else
-    if [[ -n ${GSM8K_FILE:-} ]]; then
-        python3 -B "$root/scripts/gsm8k.py" prepare --dataset "$GSM8K_FILE"
-    else
-        python3 -B "$root/scripts/gsm8k.py" prepare
-    fi
+    python3 -B "$root/scripts/gsm8k.py" prepare
 fi
 bash "$root/scripts/prepare-runtime.sh"
 if [[ "$mode" == --prepare-only ]]; then exit 0; fi

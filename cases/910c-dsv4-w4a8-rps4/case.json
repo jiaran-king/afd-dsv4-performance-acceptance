@@ -62,9 +62,19 @@
     }
   },
   "gsm8k": {
-    "source": "https://raw.githubusercontent.com/openai/grade-school-math/b0bb162abedc65e1fdd8e93ed090fd7598ee68bc/grade_school_math/data/test.jsonl",
-    "sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
-    "questions": 1319,
-    "max_output_tokens": 1024
+    "dataset": "gsm8k-first300.jsonl",
+    "questions": 300,
+    "max_afd_drop_pp": 1.5,
+    "scenarios": {
+      "0-shot": {
+        "max_output_tokens": 1024,
+        "concurrency": 32
+      },
+      "8-shot": {
+        "max_output_tokens": 512,
+        "concurrency": 12,
+        "seed": 1234
+      }
+    }
   }
 }

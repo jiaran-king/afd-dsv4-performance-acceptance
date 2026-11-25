@@ -4,10 +4,10 @@
 
 ## 1. 构建镜像
 
-首次使用时先克隆验收仓。
+在 ARM64 Linux 宿主机上克隆正式版本。已有验收镜像时，可以直接进入[启动容器](#3-启动容器)。
 
 ~~~bash
-git clone https://github.com/jiaran-king/afd-dsv4-performance-acceptance.git
+git clone --branch v0.3.0 --depth 1 https://github.com/jiaran-king/afd-dsv4-performance-acceptance.git
 cd afd-dsv4-performance-acceptance
 ~~~
 
@@ -36,10 +36,11 @@ git -C "$MODEL_DIR" lfs pull
 
 ## 3. 启动容器
 
-下面以宿主机分配 DIE `0–15` 为例。从仓库根目录在 Bash 中执行，把 `MODEL_DIR` 换成宿主机权重的绝对路径。设备编号按现场分配填写，网卡和地址从容器内查找。[官方 A3 容器示例](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image)
+下面以宿主机分配 DIE `0–15` 为例。在宿主机的验收仓根目录用 Bash 执行。将 `MODEL_DIR` 设为宿主机权重的绝对路径，`IMAGE` 设为本机验收镜像名，设备编号按现场分配填写。仓库挂载到容器的 `/work/acceptance`，运行脚本会在这个目录写入准备产物和结果。[官方 A3 容器示例](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image)
 
 ~~~bash
 MODEL_DIR=/models/dsv4-flash-w4a8-dspark
+IMAGE=afd-910c-acceptance:single-rc2
 devices=()
 for die in {0..15}; do devices+=(--device "/dev/davinci$die"); done
 docker run --rm -it --network host --ipc host \
@@ -49,7 +50,7 @@ docker run --rm -it --network host --ipc host \
   -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
   -v /etc/ascend_install.info:/etc/ascend_install.info:ro \
   -v "$MODEL_DIR:/models/dsv4:ro" -v "$PWD:/work/acceptance" \
-  -w /work/acceptance afd-910c-acceptance:single-rc2 bash
+  -w /work/acceptance "$IMAGE" bash
 ~~~
 
 ## 4. 核对运行环境

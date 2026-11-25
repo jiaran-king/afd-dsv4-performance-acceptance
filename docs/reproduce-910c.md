@@ -1,6 +1,6 @@
 # 单台 Ascend 910C 上机验收
 
-使用同一台 910C 上的 **8 张物理卡、16 个逻辑 DIE**。在已启动的验收容器内，从第 1 步开始。[正式验收版本](../README.md#运行环境与版本) · [构建镜像和挂载权重](build-environment-910c.md)
+使用同一台 910C 上的 **8 张物理卡、16 个逻辑 DIE**。先按环境指南在宿主机取得正式版本、挂载权重和启动验收容器，以下命令均在容器内执行。[正式验收版本](../README.md) · [构建镜像和挂载权重](build-environment-910c.md)
 
 ## 1. 填写 `site.env`
 
@@ -17,7 +17,9 @@ cp site.env.example site.env
 | `P_MODEL_DIR` | 填容器内的 checkpoint 根目录，其中包含模型配置、量化描述、tokenizer 和权重分片。 |
 | `VLLM_SOURCE`、`ASCEND_SOURCE`、`CANN_ROOT` | 交付镜像使用模板路径时采用默认值。现场路径不同时填实际值。 |
 
-## 2. 运行验收
+## 2. 运行性能验收
+
+首次在现场启用验收镜像时，可先执行 `./reproduce.sh --site site.env --smoke-only`，验证双 EP8 与 AFD 能加载权重并返回首 token。准备和启动日志位于该次运行目录。
 
 ~~~bash
 ./reproduce.sh --site site.env
@@ -27,7 +29,7 @@ cp site.env.example site.env
 
 ## 3. 查看结果
 
-打开运行目录里的 `acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对同轮双 EP8 基线的平均 TTFT 降幅。逐请求记录、F FULL 重放证据、8A+8F 冒烟和实际软件版本都在同一个运行目录。
+打开运行目录里的 `acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对同轮双 EP8 基线的平均 TTFT 降幅，门槛为至少 **20%**。逐请求记录、F FULL 重放证据、8A+8F 冒烟和实际软件版本都在同一个运行目录。
 
 ## 运行 GSM8K
 
@@ -35,4 +37,4 @@ cp site.env.example site.env
 ./reproduce.sh --site site.env --gsm8k
 ~~~
 
-两组分别完成官方测试集，输出完整解答。脚本用相同的提示模板、确定性生成设置和数值匹配规则评分。打开独立运行目录中的 `gsm8k.json`，查看两组正确率和 AFD 相对基线的百分点差值。结果用于报告，暂不设通过门槛。已有固定版本的测试集时，可通过 `GSM8K_FILE` 指定它。[官方 GSM8K](https://github.com/openai/grade-school-math/tree/b0bb162abedc65e1fdd8e93ed090fd7598ee68bc)
+双 EP8 和 AFD 各启动一次，各完成仓内前 300 题的 0-shot 与 8-shot。打开本次运行目录中的 `gsm8k.json`，查看每个场景的答对题数、正确率、百分点差值及判定。**`gsm8k_passed` 为 `true` 即通过**，要求两个场景各自满足 AFD 最多落后双 EP8 **1.5 个百分点**。逐题作答和提取结果保存在各组的场景目录中。[精度配置和评分](acceptance.md#gsm8k-评分)
