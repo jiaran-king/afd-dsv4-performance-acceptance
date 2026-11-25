@@ -1,0 +1,27 @@
+scripts/prepare-runtime.sh
+  s_4142e4d823eacb::t_71679f762e9f9d 101
+  s_4142e4d823eacb::t_2e5b5b8427b13f 20,25,30,45,83-100,102-112,117,127
+scripts/launch.sh
+  s_4142e4d823eacb::t_2e5b5b8427b13f 24
+  s_4142e4d823eacb::t_71679f762e9f9d 25-26
+scripts/environment.sh
+  s_4142e4d823eacb::t_2e5b5b8427b13f 6
+scripts/verify-native.py
+  s_4142e4d823eacb::t_2e5b5b8427b13f 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7a40b13f196dbd4fe64e1e200955c812581fbf85",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

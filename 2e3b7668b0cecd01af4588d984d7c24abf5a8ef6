@@ -1,0 +1,21 @@
+docs/reproduce-910c.md
+  s_4142e4d823eacb::t_0a84ba1fb0541a 28,62-73,78-87,90
+scripts/itask-node-exec.sh
+  s_4142e4d823eacb::t_62b1f09f253484 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2e3b7668b0cecd01af4588d984d7c24abf5a8ef6",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
