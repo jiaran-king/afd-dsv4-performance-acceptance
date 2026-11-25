@@ -138,6 +138,7 @@ for role in P D; do
     esac
     node "$role" env "SITE_FILE=$remote_site" bash -eu -c '
         source "$1/scripts/environment.sh"
+        activate_cann
         role=$2
         output=$3
         shift 3
@@ -168,7 +169,7 @@ if [[ "$mode" == --resume-afd ]]; then
 fi
 run_script P prepare-runtime.sh
 if [[ "$mode" == --prepare-only ]]; then
-    printf 'Prepared the locked case at %s\n' "$run"
+    printf 'Prepared the acceptance runtime at %s\n' "$run"
     exit 0
 fi
 if [[ "$mode" == --resume-afd ]]; then
@@ -205,5 +206,6 @@ node P python3 -B "$shared/scripts/audit.py" "$workload" \
     --baseline-warmup "$baseline_run/baseline-warmup" --afd-warmup "$run/afd12-warmup" \
     --ffn-graph "$run/afd12-p/graph-counters" --flexible-ratio "$run/afd8-p" \
     --attention-layout "$run/afd12-p/attention-layout.json" \
+    --environment "$run" \
     --check --output "$run/acceptance.json"
 printf 'Artifacts are in %s\n' "$run"

@@ -8,10 +8,7 @@ fi
 value() {
     python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["runtime"][sys.argv[2]])' "$case_dir/case.json" "$1"
 }
-test -r "$CANN_ROOT/set_env.sh"
-set +u
-source "$CANN_ROOT/set_env.sh"
-set -u
+activate_cann
 
 mkdir -p "$runtime"
 afd="$runtime/afd-plugin"
@@ -38,12 +35,19 @@ if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
     raise SystemExit(f"Patch checksum does not match case lock: {path.name}")
 PY
 done
-bash "$root/scripts/prepare-cws-overlay.sh" "$ASCEND_SOURCE" "$runtime" "$case_dir/patches"
+stack_key=$(python3 -B "$root/scripts/runtime_state.py" \
+    "$VLLM_SOURCE" "$ASCEND_SOURCE" "$CANN_ROOT" "$case_dir/case.json" "${CANN_3RD_LIB_PATH:-}")
+bash "$root/scripts/prepare-cws-overlay.sh" "$ASCEND_SOURCE" "$runtime" "$case_dir/patches" "$stack_key"
 
 export PYTHONPATH="$overlay:$VLLM_SOURCE:${PYTHONPATH:-}"
+cws_origin=site
 if [[ -z "${CWS_VENDOR_DIR:-}" ]]; then
+    cws_origin=built
     CWS_VENDOR_DIR="$runtime/cws-native/vendors/cws32k_transformer"
-    if [[ ! -f "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" ]]; then
+    cws_key="$runtime/cws-native/.stack-key"
+    if [[ -z "$stack_key" || ! -s "$cws_key" || "$(<"$cws_key")" != "$stack_key" ||
+          ! -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" ]]; then
+        rm -rf -- "$runtime/cws-native" "$overlay/csrc/build" "$overlay/csrc/build_out"
         (
             cd "$overlay/csrc"
             bash build.sh --pkg --ops=compressor,sparse_attn_sharedkv --soc=ascend910_93 --vendor_name=cws32k -j8 \
@@ -57,17 +61,18 @@ if [[ -z "${CWS_VENDOR_DIR:-}" ]]; then
             mkdir -p "$runtime/cws-native"
             bash "${installers[0]}" --quiet --install-path="$runtime/cws-native"
         )
+        test -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
+        printf '%s\n' "$stack_key" > "$cws_key"
     fi
-else
-    supplied_hash=$(sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" | cut -d ' ' -f 1)
-    test "$supplied_hash" = "$(value cws_reference_opapi_sha256)" || {
-        echo "The supplied CWS vendor does not match the reference library hash." >&2
-        exit 1
-    }
 fi
-test -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
+cws_library="$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
+if [[ ! -s "$cws_library" ]]; then
+    printf 'CWS library is missing or empty: %s\n' "$cws_library" >&2
+    exit 1
+fi
 CWS_VENDOR_DIR=$(cd -- "$CWS_VENDOR_DIR" && pwd -P)
 printf '%s\n' "$CWS_VENDOR_DIR" > "$runtime/cws-vendor.path"
+sha256sum "$cws_library" | cut -d ' ' -f 1 > "$runtime/cws-vendor.sha256"
 if [[ ! -d "$skill_dir" ]]; then
     staging=$(mktemp -d "$runtime/skill.XXXXXX")
     trap 'rm -rf -- "$staging"' EXIT
@@ -82,7 +87,8 @@ fi
 # the P container's local disk and publish only the installed wheel.
 extension="afd_plugin/_C_ascend$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')"
 opapi=afd_plugin/_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so
-if [[ ! -s "$afd_install/.source-commit" || "$(<"$afd_install/.source-commit")" != "$afd_commit" ||
+if [[ -z "$stack_key" || ! -s "$afd_install/.stack-key" || "$(<"$afd_install/.stack-key")" != "$stack_key" ||
+      ! -s "$afd_install/.source-commit" || "$(<"$afd_install/.source-commit")" != "$afd_commit" ||
       ! -s "$afd_install/$extension" || ! -s "$afd_install/$opapi" ]]; then
     build=$(mktemp -d /tmp/afd-build.XXXXXX)
     staging=$(mktemp -d "$runtime/afd-install.XXXXXX")
@@ -101,6 +107,7 @@ if [[ ! -s "$afd_install/.source-commit" || "$(<"$afd_install/.source-commit")" 
     test -s "$staging/$extension"
     test -s "$staging/$opapi"
     printf '%s\n' "$afd_commit" > "$staging/.source-commit"
+    printf '%s\n' "$stack_key" > "$staging/.stack-key"
     rm -rf -- "$afd_install"
     mv -- "$staging" "$afd_install"
     rm -rf -- "$build"
@@ -127,3 +134,24 @@ trap - EXIT
 sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" \
     "$attention_source/afd_plugin/compat/npu/feature_validation.py" \
     "$afd_install/$opapi"
+
+if [[ -n "${CASE_RUN_DIR:-}" ]]; then
+    python3 -B - "$CASE_RUN_DIR/prepared-runtime.json" "$runtime" "$afd_commit" "$stack_key" "$cws_origin" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+output, runtime, afd, key, origin = sys.argv[1:]
+runtime = Path(runtime)
+record = {
+    "afd": afd,
+    "build_key": key or None,
+    "cws": {
+        "origin": origin,
+        "vendor_path": (runtime / "cws-vendor.path").read_text().strip(),
+        "opapi_sha256": (runtime / "cws-vendor.sha256").read_text().strip(),
+    },
+}
+Path(output).write_text(json.dumps(record, indent=2) + "\n")
+PY
+fi

@@ -21,3 +21,11 @@ if [[ "$no_proxy" != '*' ]]; then
     no_proxy="${no_proxy:+$no_proxy,}$P_NODE_IP,$D_NODE_IP"
 fi
 export no_proxy NO_PROXY="$no_proxy"
+
+activate_cann() {
+    if [[ -r "$CANN_ROOT/set_env.sh" ]]; then
+        set +u
+        source "$CANN_ROOT/set_env.sh"
+        set -u
+    fi
+}

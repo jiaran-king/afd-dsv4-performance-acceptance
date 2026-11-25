@@ -10,11 +10,7 @@ if [[ ! "$run_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
 fi
 
 source "$root/scripts/environment.sh"
-if [[ -r "$CANN_ROOT/set_env.sh" ]]; then
-    set +u
-    source "$CANN_ROOT/set_env.sh"
-    set -u
-fi
+activate_cann
 case "$role" in
     decode) export NIC_NAME="$D_NIC" DSV4_MODEL="$D_MODEL_DIR" ;;
     *) export NIC_NAME="$P_NIC" DSV4_MODEL="$P_MODEL_DIR" ;;

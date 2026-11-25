@@ -9,6 +9,6 @@
 
 ## 上机验收
 
-准备同一对各有 16 DIE 的 910C 节点、匹配的容器镜像及同一份 W4A8/DSpark checkpoint。按上机指南查询现场地址、网卡、DIE 和权重路径，填好 `site.env` 后从 P 容器运行。 [上机步骤与配置示例](docs/reproduce-910c.md)
+准备同一对各有 16 DIE 的 910C 节点、现场的 aarch64 运行时镜像及同一份 W4A8/DSpark checkpoint。按上机指南查询现场地址、网卡、DIE 和权重路径，填好 `site.env` 后从 P 容器运行。 [上机步骤与配置示例](docs/reproduce-910c.md)
 
 默认性能用例为双 EP8 8K 对 **12A+4F、A 侧 DP3/TP4、A/F MBT 32K、F FULL、A 侧 `enable_shared_expert_dp=true`**。入口随后用 8A+8F 实际跑 PD 请求，验证灵活配比。结果写入 `runs/<run-id>/acceptance.json`，同目录保留逐请求计时和运行证据。

@@ -2,7 +2,7 @@
 
 | 原表要求 | 本仓执行的用例及证据 |
 | --- | --- |
-| vLLM、DeepSeek-V4-Flash W4A8 | 两组用同一 checkpoint，预检核对模型配置、量化描述和 tokenizer 的 JSON 内容。 |
+| vLLM、DeepSeek-V4-Flash W4A8 | 两组用同一交付 checkpoint。预检记录现场软件版本及模型配置、量化描述和 tokenizer 指纹，实际加载和 PD 冒烟验证兼容性。 |
 | 910C、1–2 节点、8–16 卡（16–32 DIE），同等卡数对照 | 固定用同一对节点顺序运行。P、D 各一台、各 8 张物理卡和 16 DIE。 |
 | 双 `DP2/TP4`，MBT=8K，入口 4 RPS | 两个独立原生 P 实例各占 8 DIE、EP8、MBT 8,192。正式请求从 PD proxy 以固定计划发出。 |
 | 完整 PD，Prefill 异步 A/F | AFD 12A+4F 使用 Async CAM。正式回放逐请求核对 D 端 KV 传输，并验证四个 F rank 的 FULL 图捕获和实际重放。发压前核对 12 个 A rank 的共享专家 DP 都已生效。 |

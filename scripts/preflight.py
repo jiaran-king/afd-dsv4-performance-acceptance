@@ -1,7 +1,6 @@
 """Check a target container or compare its record with a saved baseline."""
 
 import hashlib
-import importlib.metadata
 import ipaddress
 import json
 import platform
@@ -10,6 +9,8 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+
+from runtime_state import fingerprint, software_key, software_state
 
 
 LOCK = Path(__file__).resolve().parent.parent / "cases/910c-dsv4-w4a8-rps4/case.json"
@@ -55,9 +56,17 @@ def compare_baseline(saved_path, current_path):
         verify(current[field], saved[field], f"{label} {field}")
     if "container" in saved:
         verify(current["container"], saved["container"], f"{label} container")
+    if "node_ip" in saved:
+        verify(current["node_ip"], saved["node_ip"], f"{label} node address")
     saved_driver = (saved.get("driver") or "").strip()
-    if saved_driver and current.get("driver"):
-        verify(current["driver"], saved_driver, f"{label} driver")
+    if saved_driver:
+        verify(current.get("driver"), saved_driver, f"{label} driver")
+    if "software_sha256" in saved:
+        if not saved["software_sha256"]:
+            raise ValueError(f"{label} has incomplete software provenance. Run a full pair.")
+        verify(current["software_sha256"], saved["software_sha256"], f"{label} software state")
+    elif any(source["runtime_edits"] is not False for source in current["software"]["sources"].values()):
+        raise ValueError(f"{label} predates source-state recording. Run a full pair for this checkout.")
 
     saved_model = saved.get("model_json_sha256")
     if saved_model is None:
@@ -83,19 +92,8 @@ def main():
                 server.bind((local, int(port)))
             except OSError as error:
                 raise ValueError(f"{role} cannot use {local}:{port}: {error}") from error
-    lock = json.loads(LOCK.read_text())
-    version = lock["runtime"]
     verify(platform.machine(), "aarch64", "container architecture")
-    verify(cmd("git", "-C", vllm, "rev-parse", "HEAD"), version["vllm"], "vLLM source")
-    verify(cmd("git", "-C", ascend, "rev-parse", "HEAD"), version["vllm_ascend"], "vLLM-Ascend source")
-    for source in (vllm, ascend):
-        changes = cmd("git", "-C", source, "status", "--short", "--untracked-files=no",
-                      "--", ".", ":(exclude,top)docs", ":(exclude,top)tests", ":(exclude,top).gitignore",
-                      ":(exclude,glob)**/*.md", ":(exclude,glob)**/*.rst")
-        verify(changes, "", f"tracked source edits in {source}")
-    verify(importlib.metadata.version("torch-npu"), version["torch_npu"], "torch-npu")
-    info = (Path(cann) / "compiler/version.info").read_text()
-    verify(re.search(r"^Version=(.*)$", info, re.M)[1].strip(), version["cann"], "CANN")
+    software = software_state(vllm, ascend, cann)
 
     mapping = cmd("npu-smi", "info", "-m")
     visible = set(re.findall(r"^[ \t]*\d+[ \t]+\d+[ \t]+(\d+)[ \t]+\d+[ \t]+", mapping, re.M))
@@ -108,17 +106,23 @@ def main():
     model = Path(model)
     fingerprints = {}
     model_json = {}
-    for name, expected in lock["model"]["json_sha256"].items():
+    for name in ("config.json", "quant_model_description.json", "tokenizer.json"):
         raw = (model / name).read_bytes()
         fingerprints[name] = hashlib.sha256(raw).hexdigest()
-        canonical = json.dumps(json.loads(raw), sort_keys=True, separators=(",", ":")).encode("utf-8")
-        model_json[name] = hashlib.sha256(canonical).hexdigest()
-        verify(model_json[name], expected, f"model JSON content {name}")
+        configuration = json.loads(raw)
+        model_json[name] = fingerprint(configuration)
+        if name == "config.json":
+            model_config = {key: configuration[key] for key in (
+                "model_type", "architectures", "num_hidden_layers", "hidden_size", "vocab_size",
+            ) if key in configuration}
     shards = check_weight_files(model)
     record = json.dumps({
-        "role": role, "container": socket.gethostname(), "vllm": version["vllm"], "vllm_ascend": version["vllm_ascend"],
-        "cann": version["cann"], "driver": driver_version(), "reference_driver": version["driver"],
-        "torch_npu": version["torch_npu"], "devices": selected, "model_sha256": fingerprints,
+        "role": role, "container": socket.gethostname(), "node_ip": local,
+        "vllm": software["sources"]["vllm"]["revision"], "vllm_ascend": software["sources"]["vllm_ascend"]["revision"],
+        "cann": software["cann"]["version"], "driver": driver_version(),
+        "torch_npu": software["packages"]["torch-npu"]["version"], "software": software,
+        "software_sha256": software_key(software), "devices": selected,
+        "model_config": model_config, "model_sha256": fingerprints,
         "model_json_sha256": model_json, "checkpoint_path": str(model.resolve()), "shards": shards,
     }, indent=2)
     try:

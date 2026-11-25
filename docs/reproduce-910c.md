@@ -5,8 +5,8 @@
 ## 1. 准备环境
 
 - **两台 Ascend 910C。** P 负责 Prefill，D 负责 Decode。按现场分配确认两端各有 **8 张物理卡、16 个逻辑 DIE** 供本次测试独占。
-- **相同镜像和权重。** 两端使用交付指定的 aarch64 镜像和同一版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。按交付版本确认两端的权重挂载。预检核对固定源码、CANN、模型 JSON 内容及权重分片是否齐全。 [运行版本与模型指纹](../cases/910c-dsv4-w4a8-rps4/case.json)
-- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓。P 能创建运行目录，P、D 都能向这个目录写入。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。 [端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L85-L99)
+- **运行环境和权重。** 使用现场的 aarch64 vLLM、vLLM-Ascend 和 CANN 环境，两端挂载同一交付版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。预检检查权重分片是否齐全，并记录现场软件版本、源码改动和模型配置指纹。补丁准备、算子加载和 PD 冒烟验证现场兼容性。 [参考实验版本](../cases/910c-dsv4-w4a8-rps4/case.json)
+- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓。P 能创建运行目录，P、D 都能向这个目录写入。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。 [端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L89-L95)
 
 ## 2. 克隆仓库并填写 `site.env`
 
@@ -62,13 +62,13 @@ D_CONTAINER=afd-d
 ./reproduce.sh --site site.env
 ~~~
 
-命令检查环境并准备固定源码、补丁和算子，随后在同一对节点上跑**双 EP8 8K 基线、12A+4F AFD 性能对照和 8A+8F 配比检查**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。 [验收配置与判定](acceptance.md)
+命令准备固定版本的 AFD，并在现场软件栈上准备补丁和算子，随后在同一对节点上跑**双 EP8 8K 基线、12A+4F AFD 性能对照和 8A+8F 配比检查**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。 [验收配置与判定](acceptance.md)
 
-打开正式运行生成的 `runs/<run-id>/acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对**现场同轮双 EP8 基线**的平均 TTFT 降幅，门槛为**至少 20%**。若脚本中途退出，保留终端报错和该次运行目录供定位。
+打开正式运行生成的 `runs/<run-id>/acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对**现场同轮双 EP8 基线**的平均 TTFT 降幅，门槛为**至少 20%**。`environment` 记录两端实际软件版本和本轮准备的算子。若脚本中途退出，保留终端报错和该次运行目录供定位。
 
 若报错提示运行锁 `runs/.active`，按给出的运行目录和 PID 文件在对应容器确认上一轮服务已退出，再清理锁并重跑。
 
-若双 EP8 已完成，使用原 P/D 容器、同一份权重和设备配置，可以从同一次验收续跑 AFD 与配比检查。将 `RUN_ID` 填为原运行目录名。脚本复核原基线并在新的运行目录写入验收结果。
+若双 EP8 已完成，使用原 P/D 容器、同一份权重、软件栈和设备配置，可以从同一次验收续跑 AFD 与配比检查。将 `RUN_ID` 填为原运行目录名。脚本复核原基线及原来加载的 CWS 库，并在新的运行目录写入验收结果。
 
 ~~~bash
 ./reproduce.sh --site site.env --resume-afd "$RUN_ID"

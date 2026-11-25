@@ -273,6 +273,7 @@ def main():
     parser.add_argument("--ffn-graph", type=Path)
     parser.add_argument("--attention-layout", type=Path)
     parser.add_argument("--flexible-ratio", type=Path)
+    parser.add_argument("--environment", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--check", action="store_true", help="Exit nonzero if the replay or TTFT gate fails")
     args = parser.parse_args()
@@ -299,6 +300,14 @@ def main():
                     or data["decoder_successful_transfers"] < 1 or data["decoder_transfer_errors"]):
                 raise ValueError(f"8A+8F {kind} PD smoke did not complete")
         result["afd8_pd_smoke"] = smoke
+    if args.environment:
+        result["environment"] = {
+            role: json.loads((args.environment / f"{role}-preflight.json").read_text())
+            for role in ("P", "D")
+        }
+        result["environment"]["prepared"] = json.loads(
+            (args.environment / "prepared-runtime.json").read_text()
+        )
     raw = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.write_text(raw)
