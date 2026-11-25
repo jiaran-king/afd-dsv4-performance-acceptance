@@ -46,6 +46,8 @@ git -C "$MODEL_DIR" lfs pull
 
 命令把仓库挂到容器的 `/work/acceptance`，把权重挂到 `/models/dsv4`。容器里的 `P_MODEL_DIR` 填挂载后的路径。[官方 A3 容器示例](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image)
 
+示例使用 Ascend 驱动的默认挂载路径。宿主机没有 `/etc/ascend_install.info` 时可去掉该文件的挂载行。启动容器后按第 4 步检查设备是否可见。
+
 ~~~bash
 MODEL_DIR=/models/dsv4-flash-w4a8-dspark
 IMAGE=afd-910c-acceptance:single-rc2

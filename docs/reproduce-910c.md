@@ -15,7 +15,7 @@ cp site.env.example site.env
 
 | 字段 | 怎么填 |
 | --- | --- |
-| `P_NODE_IP`、`P_NIC` | 在容器里运行 `ip -br -4 addr`，从本机用于 HCCL / Gloo 通信的同一行取 IPv4 地址和网卡名。`P_NODE_IP` 只填 IPv4 地址本身。 |
+| `P_NODE_IP`、`P_NIC` | 在容器里运行 `ip -br -4 addr`，从本机用于 HCCL / Gloo 通信的同一行取 IPv4 地址和网卡名。没有 `ip` 时可用 `ifconfig`。`P_NODE_IP` 只填 IPv4 地址本身。 |
 | `P_DEVICES` | 在容器里运行 `npu-smi info -m`，从 `Chip Logic ID` 列取本次分配的 **16 个编号**，用逗号分隔。 |
 | `P_MODEL_DIR` | 填容器内的 checkpoint 根目录。按环境指南挂载时填 `/models/dsv4`。 |
 | `VLLM_SOURCE`、`ASCEND_SOURCE`、`CANN_ROOT` | 交付镜像使用模板路径时采用默认值。现场路径不同时填实际值。 |

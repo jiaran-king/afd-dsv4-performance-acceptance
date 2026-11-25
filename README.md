@@ -21,7 +21,7 @@
 
 ### 1. 在宿主机获取验收仓
 
-需要一台 Ascend 910C（8 张物理卡、16 个逻辑 DIE）、ARM64 Linux、Docker，以及上表的模型权重。已有权重时，记下宿主机上的权重目录。[权重获取方法](docs/build-environment-910c.md#2-准备权重路径)
+需要一台 Ascend 910C（8 张物理卡、16 个逻辑 DIE），宿主机使用 ARM64 Linux 并已安装 Ascend 驱动和 Docker。记下宿主机上模型权重的根目录，也就是包含 `config.json` 的目录。[权重获取方法](docs/build-environment-910c.md#2-准备权重路径)
 
 ~~~bash
 git clone --branch v0.3.0 --depth 1 https://github.com/jiaran-king/afd-dsv4-performance-acceptance.git
@@ -30,7 +30,7 @@ cd afd-dsv4-performance-acceptance
 
 ### 2. 在宿主机准备镜像并启动容器
 
-已有验收镜像 `afd-910c-acceptance:single-rc2` 时直接启动容器。需要从官方底座构建时，在验收仓根目录执行下面一行。
+已有按本用例构建的验收镜像时，直接执行下方的 `docker run`。使用官方底座时，先在验收仓根目录执行下面一行。
 
 ~~~bash
 docker build --platform linux/arm64 -f docker/Dockerfile.a3 -t afd-910c-acceptance:single-rc2 docker
@@ -56,6 +56,8 @@ docker run --rm -it --network host --ipc host \
   -w /work/acceptance "$IMAGE" bash
 ~~~
 
+示例使用 Ascend 驱动的默认挂载路径。宿主机没有 `/etc/ascend_install.info` 时可去掉该文件的挂载行，并在下一步用 `npu-smi info -m` 确认设备可见。
+
 命令将仓库和权重分别挂到容器内的 `/work/acceptance` 和 `/models/dsv4`，并进入容器的仓库根目录。可在容器内执行 `git -C /vllm-workspace/vllm-ascend rev-parse --short=8 HEAD`，核对回退后的提交为 `8d4409d6`。
 
 ### 3. 在容器内填写 site.env
@@ -68,27 +70,32 @@ ip -br -4 addr
 npu-smi info -m
 ~~~
 
-打开 `site.env`，按下表修改并保存。
+若容器内没有 `ip`，可用 `ifconfig` 查看网卡和 IPv4 地址。打开 `site.env`，按下表修改并保存。
 
 | 字段 | 填写方法 |
 | --- | --- |
-| `P_NODE_IP` | 从 `ip -br -4 addr` 选择供 HCCL / Gloo 使用的网卡，只填这一行的 IPv4 地址。 |
-| `P_NIC` | 填同一行的网卡名。 |
-| `P_DEVICES` | 填 `npu-smi info -m` 的 `Chip Logic ID` 列中本次使用的 16 个编号，以逗号分隔。 |
+| `P_NODE_IP` | 填供 HCCL / Gloo 使用的网卡的 IPv4 地址，去掉末尾的 CIDR 前缀长度。 |
+| `P_NIC` | 填该 IPv4 地址所属的网卡名。 |
+| `P_DEVICES` | 按第 2 步的设备顺序填写 `Chip Logic ID` 列中的 16 个编号，以逗号分隔。 |
 | `P_MODEL_DIR` | 填容器内的权重路径，按上一步挂载时填 `/models/dsv4`。 |
 
 上述镜像使用模板中 `VLLM_SOURCE`、`ASCEND_SOURCE` 和 `CANN_ROOT` 的默认值。首次上机可用 `./reproduce.sh --site site.env --smoke-only` 检查双 EP8 和 12A+4F 是否能加载模型并返回首 token。
 
 ### 4. 依次运行性能和精度验收
 
-在容器内的验收仓根目录依次执行。第一条运行性能验收，第二条运行 GSM8K 精度验收。
+在容器内的验收仓根目录运行性能验收。
 
 ~~~bash
 ./reproduce.sh --site site.env
+~~~
+
+性能运行结束后，再执行 GSM8K 精度验收。
+
+~~~bash
 ./reproduce.sh --site site.env --gsm8k
 ~~~
 
-脚本自动准备固定版本的 AFD，并顺序启动双 EP8 与 AFD。性能入口会自动获取并校验冻结请求包。
+脚本首次运行会获取固定版本的 AFD 并在容器内编译插件，随后顺序启动双 EP8 与 AFD。性能入口会自动获取并校验冻结请求包。已有冻结包时，也可在 `site.env` 的 `WORKLOAD_ARCHIVE` 中填入它在容器内的路径。
 
 ### 5. 查看两份验收报告
 
@@ -99,7 +106,7 @@ npu-smi info -m
 | 性能 `acceptance.json` | `acceptance_passed` 为 `true`。平均 TTFT 相对同轮双 EP8 基线至少降低 **20%**，并通过 8A+8F 冒烟。 |
 | 精度 `gsm8k.json` | `gsm8k_passed` 为 `true`。0-shot 和 8-shot 各自要求 AFD 正确率最多落后双 EP8 **1.5 个百分点**。 |
 
-逐请求计时、逐题作答和服务日志保存在各自的运行目录。AFD 准备日志为 `prepare.log`。
+逐请求计时、逐题作答和服务日志保存在各自的运行目录。AFD 准备日志为 `prepare.log`。退出容器后，可在宿主机仓库的 `runs/` 下继续查看。
 
 ## 测试设计
 
