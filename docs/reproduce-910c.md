@@ -10,17 +10,17 @@
 
 ### 从公开来源准备镜像和权重
 
-已有约定镜像和权重时，直接进入下一节。需要准备镜像时，从官方 vLLM-Ascend 标签 `v0.30.0rc1` 获取源码，检出用例固定提交，再用该提交的 A3/openEuler Dockerfile 构建。在两台 910C 上启动同一构建的镜像，按官方安装指南映射设备并挂载验收共享目录和权重目录。[官方 Dockerfile](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/Dockerfile.a3.openEuler) · [官方安装指南](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/docs/source/getting_started/installation.md#installation-prebuilt-image)
+已有约定镜像和权重时，直接进入第 2 节。需要复现实测的 CANN `9.1.0` 组合时，按文末步骤构建。[重建原实测镜像](#重建原实测镜像)
+
+要试用官方成品镜像的派生方案，在装有 Docker 的 ARM64 构建机上检出交付版验收仓，在仓库根目录执行。
 
 ~~~bash
-git clone --filter=blob:none --single-branch --no-checkout --branch v0.30.0rc1 \
-  https://github.com/vllm-project/vllm-ascend.git
-git -C vllm-ascend checkout --detach 8d4409d6256d8a6729140ddcc0d1889e3f96cdd6
-docker build --platform linux/arm64 \
-  -f vllm-ascend/Dockerfile.a3.openEuler \
-  --build-arg VLLM_COMMIT=ced6857afa0ea7b2e3f0846a62e1394e90f15607 \
-  -t afd-910c-acceptance:base vllm-ascend
+docker build --platform linux/arm64 -f docker/Dockerfile.a3 -t afd-910c-acceptance:official .
 ~~~
+
+这个命令从官方 `quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler` 拉取基础镜像，复用 vLLM `v0.30.0`，并重新安装和编译 vLLM-Ascend `8d4409d6`。派生镜像使用 CANN `9.2.1`，待完成构建、PD 冒烟和正式配对验证。[派生 Dockerfile](../docker/Dockerfile.a3)
+
+将构建结果分发到两台 910C，用同一个镜像启动 P、D 容器。按官方 A3 安装示例映射设备，挂载验收共享目录和权重目录。[官方 A3 安装示例](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image)
 
 在装有 Git LFS 的机器上下载固定版本的权重，将本地目录替换为现场路径。P、D 挂载同一版本。[ModelScope 权重](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) · [安装 Git LFS](https://git-lfs.com/)
 
@@ -33,7 +33,7 @@ git -C "$MODEL_DIR" checkout --detach 59b8e36964b964140dad8e580e14247564744ac9
 git -C "$MODEL_DIR" lfs pull
 ~~~
 
-验收命令从官方 AFD 的 `release/v0.30.0rc2` 分支拉取用例固定的修复提交，在 P 容器中构建算子。[官方发布分支](https://github.com/vllm-project/afd-plugin/tree/release/v0.30.0rc2) · [AFD 固定提交](../cases/910c-dsv4-w4a8-rps4/case.json)
+验收命令获取官方 AFD 标签 `0.30.0rc2` 对应的固定提交，在 P 容器中构建算子。[官方标签](https://github.com/vllm-project/afd-plugin/tree/0.30.0rc2) · [AFD 固定提交](../cases/910c-dsv4-w4a8-rps4/case.json)
 
 ## 2. 克隆仓库并填写 `site.env`
 
@@ -99,4 +99,18 @@ D_CONTAINER=afd-d
 
 ~~~bash
 ./reproduce.sh --site site.env --resume-afd "$RUN_ID"
+~~~
+
+## 重建原实测镜像
+
+从官方 vLLM-Ascend 标签 `v0.30.0rc1` 获取源码，检出 `8d4409d6`。这个提交自带的 A3/openEuler Dockerfile 从 CANN `9.1.0` 开始构建，命令同时指定 vLLM 的验收提交。[官方 Dockerfile](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/Dockerfile.a3.openEuler)
+
+~~~bash
+git clone --filter=blob:none --single-branch --no-checkout --branch v0.30.0rc1 \
+  https://github.com/vllm-project/vllm-ascend.git
+git -C vllm-ascend checkout --detach 8d4409d6256d8a6729140ddcc0d1889e3f96cdd6
+docker build --platform linux/arm64 \
+  -f vllm-ascend/Dockerfile.a3.openEuler \
+  --build-arg VLLM_COMMIT=ced6857afa0ea7b2e3f0846a62e1394e90f15607 \
+  -t afd-910c-acceptance:base vllm-ascend
 ~~~

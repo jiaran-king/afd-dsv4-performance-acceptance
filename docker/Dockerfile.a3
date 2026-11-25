@@ -1,0 +1,22 @@
+# Reuse the official vLLM build and rebuild vLLM-Ascend at the acceptance commit.
+FROM quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler@sha256:0b8bf5b484d49c667ceab717347eb3a8695388429aebd9084b79fa0f57a545c0
+
+SHELL ["/bin/bash", "-c"]
+
+ARG VLLM_ASCEND_COMMIT=8d4409d6256d8a6729140ddcc0d1889e3f96cdd6
+
+RUN python3 -m pip uninstall -y vllm-ascend \
+    && rm -rf /vllm-workspace/vllm-ascend \
+    && git init /vllm-workspace/vllm-ascend \
+    && git -C /vllm-workspace/vllm-ascend remote add origin https://github.com/vllm-project/vllm-ascend.git \
+    && git -C /vllm-workspace/vllm-ascend fetch --depth=1 origin "$VLLM_ASCEND_COMMIT" \
+    && git -C /vllm-workspace/vllm-ascend checkout --detach FETCH_HEAD \
+    && git -C /vllm-workspace/vllm-ascend submodule update --init --recursive
+
+RUN source /usr/local/Ascend/ascend-toolkit/set_env.sh \
+    && source /usr/local/Ascend/nnal/atb/set_env.sh \
+    && COMPILE_CUSTOM_KERNELS=1 SOC_VERSION=ascend910_9391 VLLM_BATCH_INVARIANT=1 \
+        python3 -m pip install --no-cache-dir \
+          --extra-index-url https://download.pytorch.org/whl/cpu/ \
+          --extra-index-url https://mirrors.huaweicloud.com/ascend/repos/pypi \
+          -e /vllm-workspace/vllm-ascend
