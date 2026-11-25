@@ -7,7 +7,7 @@ group=${1:?Specify baseline, afd12 or afd8}
 p_run="$run/$group-p"
 d_run="$run/$group-d"
 workload="$runtime/workload"
-smoke_data="$runtime/afd-plugin/.agents/skills/deploy-dsv4-flash-async/assets/workloads/formal_0_1_2_vllm_bench.jsonl.gz"
+smoke_data="$workload/formal-candidate/requests.jsonl"
 
 healthy() {
     curl -fsS --max-time 3 "$1" >/dev/null 2>&1

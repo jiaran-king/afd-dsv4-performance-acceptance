@@ -35,55 +35,10 @@ if [[ "$cached_commit" != "$afd_commit" ]]; then
     trap - EXIT
 fi
 
-overlay="$runtime/vllm-ascend-cws"
-for patch in "$case_dir"/patches/*.patch; do
-    python3 -B - "$case_dir/case.json" "$patch" <<'PY'
-import hashlib, json, sys
-from pathlib import Path
-path = Path(sys.argv[2])
-expected = json.loads(Path(sys.argv[1]).read_text())["runtime"]["patches"][path.name]
-if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-    raise SystemExit(f"Patch checksum does not match case lock: {path.name}")
-PY
-done
 stack_key=$(python3 -B "$root/scripts/runtime_state.py" \
-    "$VLLM_SOURCE" "$ASCEND_SOURCE" "$CANN_ROOT" "$case_dir/case.json" "${CANN_3RD_LIB_PATH:-}")
-bash "$root/scripts/prepare-cws-overlay.sh" "$ASCEND_SOURCE" "$runtime" "$case_dir/patches" "$stack_key"
+    "$VLLM_SOURCE" "$ASCEND_SOURCE" "$CANN_ROOT" "$case_dir/case.json")
+export PYTHONPATH="$ASCEND_SOURCE:$VLLM_SOURCE:${PYTHONPATH:-}"
 
-export PYTHONPATH="$overlay:$VLLM_SOURCE:${PYTHONPATH:-}"
-cws_origin=site
-if [[ -z "${CWS_VENDOR_DIR:-}" ]]; then
-    cws_origin=built
-    CWS_VENDOR_DIR="$runtime/cws-native/vendors/cws32k_transformer"
-    cws_key="$runtime/cws-native/.stack-key"
-    if [[ -z "$stack_key" || ! -s "$cws_key" || "$(<"$cws_key")" != "$stack_key" ||
-          ! -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" ]]; then
-        rm -rf -- "$runtime/cws-native" "$overlay/csrc/build" "$overlay/csrc/build_out"
-        (
-            cd "$overlay/csrc"
-            bash build.sh --pkg --ops=compressor,sparse_attn_sharedkv --soc=ascend910_93 --vendor_name=cws32k -j8 \
-                --cann_3rd_lib_path="${CANN_3RD_LIB_PATH:-$overlay/csrc/third_party}"
-            shopt -s nullglob
-            installers=(build/cann-ops-transformer*.run)
-            if [[ ${#installers[@]} -ne 1 ]]; then
-                echo "Expected one CWS installer in $PWD/build" >&2
-                exit 1
-            fi
-            mkdir -p "$runtime/cws-native"
-            bash "${installers[0]}" --quiet --install-path="$runtime/cws-native"
-        )
-        test -s "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
-        printf '%s\n' "$stack_key" > "$cws_key"
-    fi
-fi
-cws_library="$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so"
-if [[ ! -s "$cws_library" ]]; then
-    printf 'CWS library is missing or empty: %s\n' "$cws_library" >&2
-    exit 1
-fi
-CWS_VENDOR_DIR=$(cd -- "$CWS_VENDOR_DIR" && pwd -P)
-printf '%s\n' "$CWS_VENDOR_DIR" > "$runtime/cws-vendor.path"
-sha256sum "$cws_library" | cut -d ' ' -f 1 > "$runtime/cws-vendor.sha256"
 staging=$(mktemp -d "$runtime/skill.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
 skill_scripts=.agents/skills/deploy-dsv4-flash-async/scripts
@@ -137,28 +92,26 @@ if ! cmp -s "$afd_install/$validator" <(git -C "$afd" show "$afd_commit:$validat
     exit 1
 fi
 
-sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" \
-    "$afd_install/$validator" \
-    "$afd_install/$opapi"
+sha256sum "$afd_install/$validator" "$afd_install/$opapi" "$afd_install/$extension"
 
 if [[ -n "${CASE_RUN_DIR:-}" ]]; then
-    python3 -B - "$CASE_RUN_DIR/prepared-runtime.json" "$runtime" \
-        "$afd_commit" "$afd_source" "$afd_version" "$stack_key" "$cws_origin" <<'PY'
+    python3 -B - "$CASE_RUN_DIR/prepared-runtime.json" \
+        "$afd_commit" "$afd_source" "$afd_version" "$stack_key" "$BASELINE_MBT" "$AFD_MBT" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-output, runtime, afd, afd_source, afd_version, key, origin = sys.argv[1:]
-runtime = Path(runtime)
+output, afd, afd_source, afd_version, key, baseline_mbt, afd_mbt = sys.argv[1:]
 record = {
     "afd": afd,
     "afd_source": afd_source,
     "afd_package_version": afd_version,
     "build_key": key or None,
-    "cws": {
-        "origin": origin,
-        "vendor_path": (runtime / "cws-vendor.path").read_text().strip(),
-        "opapi_sha256": (runtime / "cws-vendor.sha256").read_text().strip(),
+    "cws": {"enabled": False},
+    "prefill_mbt": {
+        "baseline": int(baseline_mbt),
+        "afd_attention": int(afd_mbt),
+        "afd_ffn": int(afd_mbt),
     },
 }
 Path(output).write_text(json.dumps(record, indent=2) + "\n")

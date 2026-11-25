@@ -1,8 +1,0 @@
-vllm:request_queue_time_seconds_count{model_name="dsv4",sample="0"} 5.0
-vllm:request_queue_time_seconds_sum{model_name="dsv4",sample="1"} 0.00019511207938194275
-vllm:request_queue_time_seconds_count{model_name="dsv4",sample="2"} 5.0
-vllm:request_queue_time_seconds_sum{model_name="dsv4",sample="3"} 0.00014575570821762085
-vllm:request_prefill_time_seconds_count{model_name="dsv4",sample="4"} 5.0
-vllm:request_prefill_time_seconds_sum{model_name="dsv4",sample="5"} 3.079286774620414
-vllm:request_prefill_time_seconds_count{model_name="dsv4",sample="6"} 5.0
-vllm:request_prefill_time_seconds_sum{model_name="dsv4",sample="7"} 5.700317146256566

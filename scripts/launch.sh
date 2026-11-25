@@ -47,14 +47,10 @@ devices() {
     printf '%s\n' "${subset[*]}"
 }
 
-select_cws() {
-    export ACCEPTANCE_CWS=1
-    export PYTHON_VLLM_ASCEND_PATH="$runtime/vllm-ascend-cws"
-    local cws_vendor
-    cws_vendor=$(<"$runtime/cws-vendor.path")
+select_prefill_ops() {
     local ascend_vendor="$PYTHON_VLLM_ASCEND_PATH/vllm_ascend/_cann_ops_custom/vendors/custom_transformer"
-    local opp="$cws_vendor:$ascend_vendor"
-    local libs="$cws_vendor/op_api/lib:$ascend_vendor/op_api/lib"
+    local opp="$ascend_vendor"
+    local libs="$ascend_vendor/op_api/lib"
     if [[ $role == afd ]]; then
         local afd_vendor="$PYTHON_AFD_PLUGIN_PATH/afd_plugin/_cann_ops_custom/vendors/afd-plugin"
         opp="$opp:$afd_vendor"
@@ -85,7 +81,7 @@ case "$role" in
         export PREFILL_MAX_NUM_SEQS="$BASELINE_MAX_SEQS" PREFILL_GPU_MEMORY_UTILIZATION="$BASELINE_UTILIZATION"
         export MODEL_LOADER_THREADS=8 OMP_NUM_THREADS=4
         export HCCL_OP_EXPANSION_MODE=AIV ENABLE_SHARED_EXPERT_DP=true
-        select_cws
+        select_prefill_ops
         if [[ "$role" == p0 ]]; then
             export PREFILL_PORT=7100 PREFILL_DP_RPC_PORT=12321 PD_KV_PREFILL_PORT=30000
             export PD_KV_PREFILL_ENGINE_ID=0 FULL_VISIBLE_DEVICES="$(devices 0 8)"
@@ -167,7 +163,7 @@ case "$role" in
         export PREFILL_MAX_NUM_BATCHED_TOKENS="$AFD_MBT" PREFILL_MAX_NUM_SEQS="$AFD_MAX_SEQS"
         export PREFILL_GPU_MEMORY_UTILIZATION="$AFD_UTILIZATION"
         export MODEL_LOADER_THREADS=16 OMP_NUM_THREADS=4
-        select_cws
+        select_prefill_ops
         bash "$DSV4_SCRIPT_DIR/run_prefill.sh"
         ;;
     *)

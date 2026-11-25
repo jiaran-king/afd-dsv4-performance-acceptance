@@ -125,7 +125,7 @@ def software_key(state):
 
 
 if __name__ == "__main__":
-    vllm, ascend, cann, case_file, third_party = sys.argv[1:]
+    vllm, ascend, cann, case_file = sys.argv[1:]
     key = software_key(software_state(vllm, ascend, cann))
     if key:
         case = json.loads(Path(case_file).read_text())["runtime"]
@@ -133,10 +133,5 @@ if __name__ == "__main__":
             "software": key,
             "afd": case["afd"],
             "afd_package_version": case["afd_package_version"],
-            "patches": case["patches"],
-            "build_scripts": {
-                name: file_digest(Path(__file__).with_name(name))
-                for name in ("prepare-runtime.sh", "prepare-cws-overlay.sh")
-            },
-            "cann_third_party": str(Path(third_party).resolve()) if third_party else None,
+            "build_script": file_digest(Path(__file__).with_name("prepare-runtime.sh")),
         }))

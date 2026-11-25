@@ -6,23 +6,16 @@
     "decode_dies": 16
   },
   "runtime": {
-    "image_tag": "nightly-main-a3-openeuler-20260928172624_aarch64",
-    "image_digest_status": "Tag recorded in the reference run.",
     "vllm": "ced6857afa0ea7b2e3f0846a62e1394e90f15607",
     "vllm_ascend": "8d4409d6256d8a6729140ddcc0d1889e3f96cdd6",
-    "afd": "c73c82ccf286f28fb05357263196e1114c9f9ab9",
-    "afd_source": "https://github.com/jiaran-king/afd-plugin.git",
-    "afd_package_version": "0.30.0rc2+gc73c82c",
+    "afd": "98f45bbff76bb5165789313c1076fea5c92d8c44",
+    "afd_source": "https://github.com/vllm-project/afd-plugin.git",
+    "afd_package_version": "0.30.0rc2+g98f45bb",
     "cann": "9.1.0",
     "driver": "25.5.1.1",
     "torch_npu": "2.10.0.post4",
-    "cws_reference_opapi_sha256": "398151e8593c3c0d4ae46ce0fa13b5a9ac70e975297b0b0781991b69da25646b",
-    "afd_reference_opapi_sha256": "2b8dbd453b86c3b1095a0385f5cd745b5e28d7634456342d3a8077e2367efeb5",
-    "afd_reference_extension_sha256": "2998dc5b6077b1fc7fc4e1540ae1c12ebedf96557265620abd47c9eee557f605",
-    "patches": {
-      "cws-pd-logical-pages.patch": "1c86c027bb460bbda1aafdbace4a16bde3ffc254989c6a286e7841c8ab85b2b3",
-      "cws-v030-mrv2.patch": "d1422ee0c06e3617e550b25f4042bdea435147f6498b8fcab1889d6fb65e9488"
-    }
+    "cann_base_image": "quay.io/ascend/cann:9.1.0-a3-openeuler24.03-py3.12",
+    "afd_release_branch": "release/v0.30.0rc2"
   },
   "model": {
     "name": "DeepSeek-V4-Flash W4A8 + DSpark",
@@ -36,7 +29,9 @@
       "config.json": "24a49aac9e47d3e9f14b0a7db12ed9a8e753a6ce4c3f19e5cfa151fb55065cd7",
       "quant_model_description.json": "31f03834d27784cb969b629b943015baf7a615ad361607a47780cc86e0952861",
       "tokenizer.json": "b987b271087f382191dc6000ce3bb5f4dac055e4db542e4a45ba0f71abc6513a"
-    }
+    },
+    "modelscope_model": "UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test",
+    "modelscope_revision": "59b8e36964b964140dad8e580e14247564744ac9"
   },
   "load": {
     "release": "v0.1.0",

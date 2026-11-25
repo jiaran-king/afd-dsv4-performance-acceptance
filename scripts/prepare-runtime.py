@@ -18,7 +18,6 @@ def adapt(source, destination):
     text = replace_once(
         text,
         '  "enable_cpu_binding": %s,',
-        '  "enable_dsv4_shared_compressor_workspace": true,\n'
         '  "enable_prefill_mc2": true,\n  "enable_cpu_binding": %s,',
     )
     text = replace_once(text, "--enable-chunked-prefill", "--enable-chunked-prefill --async-scheduling")
@@ -29,8 +28,7 @@ def adapt(source, destination):
     attention = destination / "run_prefill_attention.sh"
     text = replace_once(
         attention.read_text(), r'  \"enable_cpu_binding\": ${ENABLE_CPU_BINDING},',
-        r'  \"enable_dsv4_shared_compressor_workspace\": true,' + "\n"
-        + r'  \"enable_shared_expert_dp\": ${AFD_ATTENTION_SHARED_EXPERT_DP:-false},' + "\n"
+        r'  \"enable_shared_expert_dp\": ${AFD_ATTENTION_SHARED_EXPERT_DP:-false},' + "\n"
         + r'  \"enable_cpu_binding\": ${ENABLE_CPU_BINDING},',
     )
     text = replace_once(

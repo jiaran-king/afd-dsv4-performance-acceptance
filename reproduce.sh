@@ -160,6 +160,15 @@ node P env "SITE_FILE=$remote_site" bash -eu -c '
 ' bash "$shared"
 workload="$shared/.runtime/workload/formal-candidate/requests.jsonl"
 if [[ "$mode" == --resume-afd ]]; then
+    node P python3 -B -c '
+import json
+import sys
+from pathlib import Path
+
+record = Path(sys.argv[1])
+if not record.is_file() or json.loads(record.read_text()).get("cws", {}).get("enabled") is not False:
+    raise SystemExit("Resume requires a baseline from the no-CWS acceptance case. Run the full case again.")
+' "$baseline_run/prepared-runtime.json"
     for role in P D; do
         node P python3 -B "$shared/scripts/preflight.py" --compare-baseline \
             "$baseline_run/$role-preflight.json" "$run/$role-preflight.json"

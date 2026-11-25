@@ -33,7 +33,8 @@ def choose_prompt(dataset, min_prompt_tokens):
     with open_data(dataset, "rt", encoding="utf-8") as workload:
         for line in workload:
             row = json.loads(line)
-            if row["metadata"]["input_length"] >= min_prompt_tokens:
+            length = row["prompt_tokens"] if "prompt_tokens" in row else row["metadata"]["input_length"]
+            if length >= min_prompt_tokens:
                 return row["prompt"]
     raise ValueError(f"{dataset} has no prompt of at least {min_prompt_tokens} tokens")
 
@@ -118,12 +119,13 @@ def main():
     ttft, generated, prompt_tokens = generate(opener, args.proxy, args.output / "response.sse", prompt)
     raw, after = metrics(opener, args.decoder)
     (args.output / "decode-metrics-after.txt").write_text(raw)
+    prompt_text = prompt if isinstance(prompt, str) else json.dumps(prompt, separators=(",", ":"))
     result = {
         "proxy": args.proxy,
         "decoder": args.decoder,
         "ttft_seconds": ttft,
         "generated": generated,
-        "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
+        "prompt_sha256": hashlib.sha256(prompt_text.encode()).hexdigest(),
         "prompt_tokens": prompt_tokens,
         "decoder_external_kv_tokens": after - before,
     }
