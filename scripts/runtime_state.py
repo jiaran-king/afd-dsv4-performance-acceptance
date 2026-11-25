@@ -132,6 +132,7 @@ if __name__ == "__main__":
         print(fingerprint({
             "software": key,
             "afd": case["afd"],
+            "afd_package_version": case["afd_package_version"],
             "patches": case["patches"],
             "build_scripts": {
                 name: file_digest(Path(__file__).with_name(name))

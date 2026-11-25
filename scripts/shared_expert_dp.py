@@ -44,8 +44,10 @@ def main():
     for row in rows:
         found = row.get("feature_validation_source")
         if not found or Path(found).resolve(strict=True) != expected:
-            raise ValueError("An Attention worker did not load the patched validator")
-    print(json.dumps(verify_layout(rows), indent=2))
+            raise ValueError("An Attention worker did not load the validator from the prepared AFD installation")
+    report = verify_layout(rows)
+    report["feature_validation_source"] = str(expected)
+    print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":

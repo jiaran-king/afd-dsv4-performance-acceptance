@@ -26,14 +26,10 @@ def main():
         raise ValueError("The baseline mapped an AFD library")
     if group != "baseline":
         extension = f"_C_ascend{sysconfig.get_config_var('EXT_SUFFIX')}"
-        packages = [afd]
-        if group == "afd12":
-            packages.append(runtime / "afd-attention/afd_plugin")
-        for package in packages:
-            for path in (package / "_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so",
-                         package / extension):
-                if found.get(path.resolve()) != digest(path):
-                    raise ValueError(f"The expected library was not mapped: {path}")
+        for path in (afd / "_cann_ops_custom/vendors/afd-plugin/op_api/lib/libcust_opapi.so",
+                     afd / extension):
+            if found.get(path.resolve()) != digest(path):
+                raise ValueError(f"The expected library was not mapped: {path}")
     print(f"Verified mapped native libraries for {group} ({len(maps['processes'])} processes).")
 
 

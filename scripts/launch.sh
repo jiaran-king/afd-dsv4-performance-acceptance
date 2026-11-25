@@ -145,7 +145,6 @@ case "$role" in
                 export PREFILL_FFN_GRAPH_MODE=FULL
                 export AFD_GRAPH_PROBE_DIR="$LOG_DIR/graph-counters"
                 export AFD_ATTENTION_SHARED_EXPERT_DP=true
-                export AFD_ATTENTION_SOURCE="$attention_source"
                 export AFD_SHARED_DP_PROBE_DIR="$LOG_DIR/attention-ranks"
                 export PYTHONPATH="$root/scripts:$PYTHONPATH"
                 mkdir "$AFD_GRAPH_PROBE_DIR" "$AFD_SHARED_DP_PROBE_DIR"
@@ -157,7 +156,7 @@ case "$role" in
                 export PREFILL_FFN_VISIBLE_DEVICES="$(devices 8 8)"
                 export PREFILL_FFN_GRAPH_MODE=EAGER
                 export AFD_ATTENTION_SHARED_EXPERT_DP=false
-                unset AFD_GRAPH_PROBE_DIR AFD_ATTENTION_SOURCE AFD_SHARED_DP_PROBE_DIR
+                unset AFD_GRAPH_PROBE_DIR AFD_SHARED_DP_PROBE_DIR
                 ;;
             *)
                 printf '%s\n' 'Specify 12a4f or 8a8f' >&2

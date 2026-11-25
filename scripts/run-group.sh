@@ -70,7 +70,7 @@ python3 -B "$root/scripts/verify-native.py" "$p_run/native-maps.json" "$runtime"
 
 if [[ "$group" == afd12 ]]; then
     python3 -B "$root/scripts/shared_expert_dp.py" "$p_run/attention-ranks" \
-        "$attention_source/afd_plugin/compat/npu/feature_validation.py" > "$p_run/attention-layout.json"
+        "$afd_install/afd_plugin/compat/npu/feature_validation.py" > "$p_run/attention-layout.json"
 fi
 
 if [[ "$group" == afd8 ]]; then

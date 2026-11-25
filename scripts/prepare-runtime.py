@@ -37,7 +37,6 @@ def adapt(source, destination):
         text, 'echo "Starting DSV4 P/Attention:',
         'ATTENTION_PROBE_ARGS=()\n'
         'if [[ "${AFD_ATTENTION_SHARED_EXPERT_DP:-false}" == true ]]; then\n'
-        '  export PYTHONPATH="${AFD_ATTENTION_SOURCE:?}:$PYTHONPATH"\n'
         '  export PYTHONDONTWRITEBYTECODE=1\n'
         '  ATTENTION_PROBE_ARGS=(--worker-extension-cls afd_shared_dp_probe.Worker)\n'
         'fi\n\n'

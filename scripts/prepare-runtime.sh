@@ -13,16 +13,27 @@ activate_cann
 mkdir -p "$runtime"
 afd="$runtime/afd-plugin"
 afd_commit=$(value afd)
-if [[ ! -d "$afd/.git" ]]; then
+afd_source=$(value afd_source)
+afd_version=$(value afd_package_version)
+cached_commit=
+if [[ -e "$afd/.git" ]]; then
+    cached_commit=$(git -C "$afd" rev-parse --verify HEAD 2>/dev/null) || cached_commit=
+fi
+if [[ "$cached_commit" != "$afd_commit" ]]; then
     staging=$(mktemp -d "$runtime/afd.XXXXXX")
     trap 'rm -rf -- "$staging"' EXIT
-    git -C "$staging" init -q
-    git -C "$staging" fetch --depth 1 https://github.com/vllm-project/afd-plugin.git "$afd_commit"
-    git -C "$staging" checkout --detach FETCH_HEAD
-    mv -- "$staging" "$afd"
+    mkdir "$staging/source"
+    git -C "$staging/source" init -q
+    git -C "$staging/source" fetch --depth 1 "$afd_source" "$afd_commit"
+    git -C "$staging/source" checkout --detach FETCH_HEAD
+    test "$(git -C "$staging/source" rev-parse HEAD)" = "$afd_commit"
+    if [[ -e "$afd" || -L "$afd" ]]; then
+        mv -- "$afd" "$staging/previous"
+    fi
+    mv -- "$staging/source" "$afd"
+    rm -rf -- "$staging"
     trap - EXIT
 fi
-test "$(git -C "$afd" rev-parse HEAD)" = "$afd_commit"
 
 overlay="$runtime/vllm-ascend-cws"
 for patch in "$case_dir"/patches/*.patch; do
@@ -73,15 +84,15 @@ fi
 CWS_VENDOR_DIR=$(cd -- "$CWS_VENDOR_DIR" && pwd -P)
 printf '%s\n' "$CWS_VENDOR_DIR" > "$runtime/cws-vendor.path"
 sha256sum "$cws_library" | cut -d ' ' -f 1 > "$runtime/cws-vendor.sha256"
-if [[ ! -d "$skill_dir" ]]; then
-    staging=$(mktemp -d "$runtime/skill.XXXXXX")
-    trap 'rm -rf -- "$staging"' EXIT
-    python3 -B "$root/scripts/prepare-runtime.py" \
-        "$afd/.agents/skills/deploy-dsv4-flash-async/scripts" "$staging/scripts"
-    mv -- "$staging/scripts" "$skill_dir"
-    rmdir "$staging"
-    trap - EXIT
-fi
+staging=$(mktemp -d "$runtime/skill.XXXXXX")
+trap 'rm -rf -- "$staging"' EXIT
+skill_scripts=.agents/skills/deploy-dsv4-flash-async/scripts
+git -C "$afd" archive "$afd_commit" "$skill_scripts" | tar -C "$staging" -xf -
+python3 -B "$root/scripts/prepare-runtime.py" "$staging/$skill_scripts" "$staging/scripts"
+rm -rf -- "$skill_dir"
+mv -- "$staging/scripts" "$skill_dir"
+rm -rf -- "$staging"
+trap - EXIT
 
 # CANN deletes temporary kernel files during compilation. Keep that work on
 # the P container's local disk and publish only the installed wheel.
@@ -97,7 +108,7 @@ if [[ -z "$stack_key" || ! -s "$afd_install/.stack-key" || "$(<"$afd_install/.st
     git -C "$afd" archive "$afd_commit" | tar -C "$build/source" -xf -
     (
         cd "$build/source"
-        SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_AFD_PLUGIN=0.30.0rc1.dev11+gbc80959 \
+        SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_AFD_PLUGIN="$afd_version" \
             SOC_VERSION=910c AFD_BUILD_ASCEND_OPS=1 TMPDIR="$build" \
             python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir "$build" .
     )
@@ -120,31 +131,29 @@ fi
 # wheel's native libraries and registration, and use the pinned Python tree.
 git -C "$afd" archive "$afd_commit" afd_plugin | tar -C "$afd_install" -xf -
 
-# Reproduce the A-only source copy used by the shared-expert DP run.
-staging=$(mktemp -d "$runtime/afd-attention.XXXXXX")
-trap 'rm -rf -- "$staging"' EXIT
-tar -C "$afd_install" --exclude=__pycache__ -cf - afd_plugin | tar -C "$staging" -xf -
-GIT_CEILING_DIRECTORIES="$runtime" git -C "$staging" apply "$case_dir/patches/afd-shared-expert-dp.patch"
-validator="$staging/afd_plugin/compat/npu/feature_validation.py"
-test "$(sha256sum "$validator" | cut -d ' ' -f 1)" = "$(value afd_attention_validation_sha256)"
-rm -rf -- "$attention_source"
-mv -- "$staging" "$attention_source"
-trap - EXIT
+validator=afd_plugin/compat/npu/feature_validation.py
+if ! cmp -s "$afd_install/$validator" <(git -C "$afd" show "$afd_commit:$validator"); then
+    printf 'The prepared AFD validator differs from commit %s.\n' "$afd_commit" >&2
+    exit 1
+fi
 
 sha256sum "$CWS_VENDOR_DIR/op_api/lib/libcust_opapi.so" \
-    "$attention_source/afd_plugin/compat/npu/feature_validation.py" \
+    "$afd_install/$validator" \
     "$afd_install/$opapi"
 
 if [[ -n "${CASE_RUN_DIR:-}" ]]; then
-    python3 -B - "$CASE_RUN_DIR/prepared-runtime.json" "$runtime" "$afd_commit" "$stack_key" "$cws_origin" <<'PY'
+    python3 -B - "$CASE_RUN_DIR/prepared-runtime.json" "$runtime" \
+        "$afd_commit" "$afd_source" "$afd_version" "$stack_key" "$cws_origin" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-output, runtime, afd, key, origin = sys.argv[1:]
+output, runtime, afd, afd_source, afd_version, key, origin = sys.argv[1:]
 runtime = Path(runtime)
 record = {
     "afd": afd,
+    "afd_source": afd_source,
+    "afd_package_version": afd_version,
     "build_key": key or None,
     "cws": {
         "origin": origin,
