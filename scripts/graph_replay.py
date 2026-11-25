@@ -76,5 +76,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
     parser.add_argument("boundary", choices=("before", "after"))
+    parser.add_argument("--verify", type=Path, nargs="+")
     args = parser.parse_args()
     snapshot(args.directory, args.boundary)
+    if args.verify:
+        requests = [json.loads(path.read_text()) for path in args.verify]
+        print(json.dumps(verify_full_replay(args.directory, requests), indent=2))

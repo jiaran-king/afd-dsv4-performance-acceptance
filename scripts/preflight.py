@@ -1,7 +1,6 @@
-"""Check a target container or compare its record with a saved baseline."""
+"""Check the local test container and record the runtime environment."""
 
 import hashlib
-import ipaddress
 import json
 import platform
 import re
@@ -10,10 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runtime_state import fingerprint, software_key, software_state
-
-
-LOCK = Path(__file__).resolve().parent.parent / "cases/910c-dsv4-w4a8-rps4/case.json"
+from runtime_state import fingerprint, software_state
 
 
 def verify(value, expected, name):
@@ -48,60 +44,25 @@ def check_weight_files(model):
     return len(shards)
 
 
-def compare_baseline(saved_path, current_path):
-    saved = json.loads(Path(saved_path).read_text())
-    current = json.loads(Path(current_path).read_text())
-    label = f"{current['role']} saved baseline"
-    for field in ("role", "vllm", "vllm_ascend", "cann", "torch_npu", "devices"):
-        verify(current[field], saved[field], f"{label} {field}")
-    if "container" in saved:
-        verify(current["container"], saved["container"], f"{label} container")
-    if "node_ip" in saved:
-        verify(current["node_ip"], saved["node_ip"], f"{label} node address")
-    saved_driver = (saved.get("driver") or "").strip()
-    if saved_driver:
-        verify(current.get("driver"), saved_driver, f"{label} driver")
-    if "software_sha256" in saved:
-        if not saved["software_sha256"]:
-            raise ValueError(f"{label} has incomplete software provenance. Run a full pair.")
-        verify(current["software_sha256"], saved["software_sha256"], f"{label} software state")
-    elif any(source["runtime_edits"] is not False for source in current["software"]["sources"].values()):
-        raise ValueError(f"{label} predates source-state recording. Run a full pair for this checkout.")
-
-    saved_model = saved.get("model_json_sha256")
-    if saved_model is None:
-        model_lock = json.loads(LOCK.read_text())["model"]
-        verify(saved["model_sha256"], model_lock["file_sha256"], f"{label} model fingerprint")
-        saved_model = model_lock["json_sha256"]
-    verify(current["model_json_sha256"], saved_model, f"{label} model JSON fingerprint")
-
-
 def main():
-    if sys.argv[1] == "--compare-baseline":
-        compare_baseline(*sys.argv[2:])
-        return
-
-    role, model, devices, vllm, ascend, cann, p_ip, d_ip, output, *ports = sys.argv[1:]
-    addresses = {ipaddress.IPv4Address(value) for value in (p_ip, d_ip)}
-    verify(len(addresses), 2, "distinct P/D addresses")
-    local = p_ip if role == "P" else d_ip
+    model, devices, vllm, ascend, cann, local, output, *ports = sys.argv[1:]
     for port in ports:
         with socket.socket() as server:
             server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                server.bind((local, int(port)))
+                server.bind(("0.0.0.0", int(port)))
             except OSError as error:
-                raise ValueError(f"{role} cannot use {local}:{port}: {error}") from error
+                raise ValueError(f"Cannot use port {port}: {error}") from error
     verify(platform.machine(), "aarch64", "container architecture")
     software = software_state(vllm, ascend, cann)
 
     mapping = cmd("npu-smi", "info", "-m")
     visible = set(re.findall(r"^[ \t]*\d+[ \t]+\d+[ \t]+(\d+)[ \t]+\d+[ \t]+", mapping, re.M))
     selected = [device.strip() for device in devices.split(",")]
-    verify(len(selected), 16, f"{role} device rank count")
-    verify(len(set(selected)), 16, f"{role} unique devices")
+    verify(len(selected), 16, "device rank count")
+    verify(len(set(selected)), 16, "unique devices")
     if not set(selected) <= visible:
-        raise ValueError(f"{role} logical devices are outside Ascend device mapping")
+        raise ValueError("Logical devices are outside Ascend device mapping")
 
     model = Path(model)
     fingerprints = {}
@@ -117,18 +78,18 @@ def main():
             ) if key in configuration}
     shards = check_weight_files(model)
     record = json.dumps({
-        "role": role, "container": socket.gethostname(), "node_ip": local,
+        "container": socket.gethostname(), "node_ip": local,
         "vllm": software["sources"]["vllm"]["revision"], "vllm_ascend": software["sources"]["vllm_ascend"]["revision"],
         "cann": software["cann"]["version"], "driver": driver_version(),
         "torch_npu": software["packages"]["torch-npu"]["version"], "software": software,
-        "software_sha256": software_key(software), "devices": selected,
+        "devices": selected,
         "model_config": model_config, "model_sha256": fingerprints,
         "model_json_sha256": model_json, "checkpoint_path": str(model.resolve()), "shards": shards,
     }, indent=2)
     try:
         Path(output).write_text(record + "\n")
     except OSError as error:
-        raise SystemExit(f"{role} cannot write its preflight record in {Path(output).parent}: {error}")
+        raise SystemExit(f"Cannot write the preflight record in {Path(output).parent}: {error}")
     print(record)
 
 

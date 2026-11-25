@@ -1,4 +1,4 @@
-"""Audit complete PD replay evidence and compare two runs of a frozen load."""
+"""Audit complete single-node replay evidence and compare two runs of a frozen load."""
 
 import argparse
 import gzip
@@ -7,23 +7,10 @@ import json
 import math
 import re
 import statistics
-import time
 from collections import defaultdict
 from pathlib import Path
 
 from graph_replay import verify_full_replay
-
-
-def external_kv(path):
-    total = 0.0
-    samples = 0
-    for line in path.read_text().splitlines():
-        if line.startswith("vllm:prompt_tokens_by_source_total{") and 'source="external_kv_transfer"' in line:
-            total += float(line.split()[-1])
-            samples += 1
-    if not samples:
-        raise ValueError(f"Missing external KV counter: {path}")
-    return total
 
 
 def queues(run):
@@ -102,37 +89,7 @@ def read_rows(path):
         return list(map(json.loads, stream))
 
 
-def response_ids(requests_file):
-    return {
-        row["response_id"] for row in read_rows(requests_file)
-        if row["status"] == "ok"
-    }
-
-
-def transfer_ids(log):
-    return set(re.findall(r"KV cache transfer for request (\S+) took", log))
-
-
-def transfer_owner(transfer):
-    return re.sub(r"-[0-9]+-[0-9a-f]{8}$", "", transfer)
-
-
-def snapshot_decode_log(source, offset, run, wait_for_transfers):
-    expected = response_ids(run / "client/requests.jsonl") if wait_for_transfers else set()
-    deadline = time.monotonic() + 30
-    while True:
-        with source.open("rb") as stream:
-            stream.seek(offset)
-            raw = stream.read()
-        owners = {transfer_owner(identifier) for identifier in transfer_ids(raw.decode(errors="replace"))}
-        if expected <= owners or time.monotonic() >= deadline:
-            (run / "decode-window.log").write_bytes(raw)
-            return
-        # D writes from another node. The HTTP response may arrive before NFS exposes the log.
-        time.sleep(1)
-
-
-def independently_audit(run, workload, digest, warmup):
+def independently_audit(run, workload, digest):
     client = run / "client"
     meta = json.loads((client / "summary.json").read_text())
     rows = read_rows(client / "requests.jsonl")
@@ -170,35 +127,6 @@ def independently_audit(run, workload, digest, warmup):
     if meta.get("scheduling_policy") == "fixed-slot-order, dependency-checked" and sent_ids != keys:
         raise ValueError(f"Observed sending order disagrees with the frozen slots in {run}")
     arrivals = (len(times) - 1) / (times[-1] - times[0])
-    decode = (run / "decode-window.log").read_text()
-    kv_transfers = transfer_ids(decode)
-    responses = {row["response_id"] for row in rows}
-    matched = []
-    known_warmup = response_ids(warmup / "requests.jsonl") if warmup else set()
-    warmup_transfers = 0
-    unexpected = []
-    for transfer in kv_transfers:
-        owner = transfer_owner(transfer)
-        if owner in responses:
-            matched.append(owner)
-        elif owner in known_warmup:
-            warmup_transfers += 1
-        else:
-            unexpected.append(transfer)
-    transfer_errors = [
-        line
-        for line in decode.splitlines()
-        if "ERROR" in line and any(word in line.lower() for word in ("transfer", "mooncake"))
-    ]
-    matched_tokens = round(external_kv(run / "post-d.metrics") - external_kv(run / "pre-d.metrics"))
-    expected_tokens = sum(prompt_len - 1 for _, _, prompt_len in workload.values())
-    if (transfer_errors or unexpected or len(matched) != len(keys)
-            or set(matched) != responses or matched_tokens != expected_tokens):
-        raise ValueError(
-            f"D-side KV audit failed in {run}: {len(set(matched))}/{len(keys)} matched requests, "
-            f"{len(unexpected)} unrelated transfers, {matched_tokens}/{expected_tokens} external tokens, "
-            f"{len(transfer_errors)} errors"
-        )
     peaks, waiting = queues(run)
     return {
         "run": str(run.resolve()),
@@ -215,9 +143,6 @@ def independently_audit(run, workload, digest, warmup):
         "p95_ttft_ms": statistics.quantiles(ttft, n=100, method="inclusive")[94],
         "ttft_quarter_means_ms": [statistics.fmean(ttft[i * len(ttft) // 4 : (i + 1) * len(ttft) // 4]) for i in range(4)],
         "inflight_at_last_send": sum(row["completed_monotonic"] > times[-1] for row in order),
-        "decoder_kv_transfers": len(matched),
-        "decoder_external_kv_tokens": matched_tokens,
-        "decoder_warmup_transfers_in_log_window": warmup_transfers,
         "p_request_phase_metrics": prefill_phases(run),
         "p_peak_waiting_by_engine": peaks,
         "p_waiting_timeseries": waiting,
@@ -242,77 +167,63 @@ def at_target_rate(run):
     )
 
 
-def compare(keys, digest, baseline_run, afd_run=None, baseline_warmup=None, afd_warmup=None):
-    baseline, order = independently_audit(baseline_run, keys, digest, baseline_warmup)
-    result = {"baseline": baseline, "replay_valid": at_target_rate(baseline)}
-    if afd_run is not None:
-        afd, other_order = independently_audit(afd_run, keys, digest, afd_warmup)
-        if baseline["scheduling_policy"] != afd["scheduling_policy"]:
-            raise ValueError("The two runs scheduled ready requests under different rules")
-        ceiling = baseline["mean_ttft_ms"] * 0.8
-        valid = result["replay_valid"] and at_target_rate(afd) and order == other_order
-        result.update(
-            afd=afd,
-            identical_send_order=order == other_order,
-            acceptance_ceiling_ms=ceiling,
-            reduction_pct=(1 - afd["mean_ttft_ms"] / baseline["mean_ttft_ms"]) * 100,
-            ttft_gate_passed=afd["mean_ttft_ms"] <= ceiling,
-            replay_valid=valid,
-            acceptance_passed=valid and afd["mean_ttft_ms"] <= ceiling,
-        )
-    return result
+def compare(keys, digest, baseline_run, afd_run, min_reduction):
+    baseline, order = independently_audit(baseline_run, keys, digest)
+    afd, other_order = independently_audit(afd_run, keys, digest)
+    ceiling = baseline["mean_ttft_ms"] * (1 - min_reduction)
+    replay_valid = at_target_rate(baseline) and at_target_rate(afd) and order == other_order
+    ttft_passed = afd["mean_ttft_ms"] <= ceiling
+    return {
+        "baseline": baseline,
+        "afd": afd,
+        "identical_send_order": order == other_order,
+        "acceptance_ceiling_ms": ceiling,
+        "reduction_pct": (1 - afd["mean_ttft_ms"] / baseline["mean_ttft_ms"]) * 100,
+        "ttft_gate_passed": ttft_passed,
+        "replay_valid": replay_valid,
+        "acceptance_passed": replay_valid and ttft_passed,
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workload", type=Path)
     parser.add_argument("baseline", type=Path)
-    parser.add_argument("afd", type=Path, nargs="?")
-    parser.add_argument("--baseline-warmup", type=Path)
-    parser.add_argument("--afd-warmup", type=Path)
-    parser.add_argument("--ffn-graph", type=Path)
-    parser.add_argument("--attention-layout", type=Path)
-    parser.add_argument("--flexible-ratio", type=Path)
-    parser.add_argument("--environment", type=Path)
-    parser.add_argument("--output", type=Path)
-    parser.add_argument("--check", action="store_true", help="Exit nonzero if the replay or TTFT gate fails")
+    parser.add_argument("afd", type=Path)
+    parser.add_argument("--case", type=Path, required=True)
+    parser.add_argument("--ffn-graph", type=Path, required=True)
+    parser.add_argument("--attention-layout", type=Path, required=True)
+    parser.add_argument("--flexible-ratio", type=Path, required=True)
+    parser.add_argument("--environment", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.ffn_graph and args.afd is None:
-        parser.error("--ffn-graph requires an AFD replay")
     digest = hashlib.sha256(args.workload.read_bytes()).hexdigest()
     keys = load_workload_index(read_rows(args.workload))
-    result = compare(keys, digest, args.baseline, args.afd, args.baseline_warmup, args.afd_warmup)
-    if args.ffn_graph:
-        requests = read_rows(args.afd / "client/requests.jsonl")
-        result["ffn_full_replay"] = verify_full_replay(args.ffn_graph, requests)
-    if args.attention_layout:
-        attention = json.loads(args.attention_layout.read_text())
-        if attention["observed_ranks"] != 12 or not attention["all_12_ranks_resolved_shared_expert_dp"]:
-            raise ValueError("Shared-expert DP was not verified on all 12 Attention ranks")
-        result["attention_shared_expert_dp"] = attention
-    if args.flexible_ratio:
-        smoke = {
-            kind: json.loads((args.flexible_ratio / f"pd-{kind}/result.json").read_text())
-            for kind in ("short", "long")
-        }
-        for kind, data in smoke.items():
-            if (not data["generated"] or data["decoder_external_kv_tokens"] <= 0
-                    or data["decoder_successful_transfers"] < 1 or data["decoder_transfer_errors"]):
-                raise ValueError(f"8A+8F {kind} PD smoke did not complete")
-        result["afd8_pd_smoke"] = smoke
-    if args.environment:
-        result["environment"] = {
-            role: json.loads((args.environment / f"{role}-preflight.json").read_text())
-            for role in ("P", "D")
-        }
-        result["environment"]["prepared"] = json.loads(
-            (args.environment / "prepared-runtime.json").read_text()
-        )
+    expected = json.loads(args.case.read_text())["load"]
+    if digest != expected["splits"]["formal_candidate"]["sha256"]:
+        raise ValueError("The formal replay workload does not match the frozen case")
+    result = compare(keys, digest, args.baseline, args.afd, expected["required_ttft_reduction"])
+    requests = read_rows(args.afd / "client/requests.jsonl")
+    result["ffn_full_replay"] = verify_full_replay(args.ffn_graph, requests)
+    attention = json.loads(args.attention_layout.read_text())
+    if attention["observed_ranks"] != 12 or not attention["all_12_ranks_resolved_shared_expert_dp"]:
+        raise ValueError("Shared-expert DP was not verified on all 12 Attention ranks")
+    result["attention_shared_expert_dp"] = attention
+    smoke = {
+        kind: json.loads((args.flexible_ratio / f"{kind}/result.json").read_text())
+        for kind in ("short", "long")
+    }
+    if any(row["status"] != "ok" or row["output_tokens"] != 1 for row in smoke.values()):
+        raise ValueError("8A+8F first-token smoke did not complete")
+    result["afd8_prefill_smoke"] = smoke
+    result["environment"] = {
+        "P": json.loads((args.environment / "preflight.json").read_text()),
+        "prepared": json.loads((args.environment / "prepared-runtime.json").read_text()),
+    }
     raw = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
-    if args.output:
-        args.output.write_text(raw)
+    args.output.write_text(raw)
     print(raw, end="")
-    if args.check and not result.get("acceptance_passed", result["replay_valid"]):
+    if not result["acceptance_passed"]:
         raise SystemExit(1)
 
 

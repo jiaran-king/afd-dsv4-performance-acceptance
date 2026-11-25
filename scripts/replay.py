@@ -1,4 +1,4 @@
-"""Replay a frozen multi-turn workload through the PD completions endpoint."""
+"""Replay a frozen multi-turn workload against local completions endpoints."""
 
 import argparse
 import asyncio
@@ -20,6 +20,7 @@ async def send(client, url, row, body, events):
     start = time.monotonic()
     reply = {
         "id": row["id"],
+        "endpoint": url,
         "session": row["session"],
         "turn": row["turn"],
         "input_tokens": row["prompt_tokens"],
@@ -70,6 +71,20 @@ async def send(client, url, row, body, events):
     events.put_nowait(reply)
 
 
+def request_body(prompt):
+    request = {
+        "model": "dsv4",
+        "prompt": prompt,
+        "max_tokens": 1,
+        "temperature": 0,
+        "ignore_eos": True,
+        "add_special_tokens": False,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+    return json.dumps(request, separators=(",", ":")).encode()
+
+
 def prepare(workload, fixed_order):
     groups = defaultdict(list)
     bodies = {}
@@ -82,17 +97,7 @@ def prepare(workload, fixed_order):
         prompt = row.pop("prompt")
         if len(prompt) != row["prompt_tokens"]:
             raise ValueError(f"Unexpected prompt length for {row['id']}")
-        request = {
-            "model": "dsv4",
-            "prompt": prompt,
-            "max_tokens": 1,
-            "temperature": 0,
-            "ignore_eos": True,
-            "add_special_tokens": False,
-            "stream": True,
-            "stream_options": {"include_usage": True},
-        }
-        bodies[row["id"]] = json.dumps(request, separators=(",", ":")).encode()
+        bodies[row["id"]] = request_body(prompt)
         groups[row["session"]].append(row)
     if fixed_order:
         priorities = sorted(row["priority"] for rows in groups.values() for row in rows)
@@ -125,7 +130,9 @@ def push_next(session, ready, fixed_order):
 async def replay(args):
     fixed_order = args.order == "fixed"
     pending, bodies, ready = prepare(args.workload, fixed_order)
-    url = args.proxy.rstrip("/") + "/v1/completions"
+    urls = [endpoint.rstrip("/") + "/v1/completions" for endpoint in args.endpoint]
+    # Route by session so alternating interleaved turns do not skew the two EP8 services.
+    routes = {session: urls[index % len(urls)] for index, session in enumerate(pending)}
     events = asyncio.Queue()
     active = {}
     results = []
@@ -161,7 +168,9 @@ async def replay(args):
                 if ready and (not fixed_order or ready[0][1] == len(send_order)):
                     _, _, request_id, row = heapq.heappop(ready)
                     send_order.append(request_id)
-                    active[request_id] = asyncio.create_task(send(client, url, row, bodies[request_id], events))
+                    active[request_id] = asyncio.create_task(
+                        send(client, routes[row["session"]], row, bodies[request_id], events)
+                    )
                 elif ready or any(pending.values()):
                     skipped += 1
                 tick += PERIOD
@@ -211,7 +220,7 @@ def summarize(args, bodies, results, send_order, skipped):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--proxy", required=True)
+    parser.add_argument("--endpoint", action="append", required=True)
     parser.add_argument("--workload", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--timeout", type=int, default=600)

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
-role=${1:?Specify p0, p1, decode, proxy, proxy-afd, proxy-p0, proxy-p1, or afd}
+role=${1:?Specify p0, p1, or afd}
 run_name=${2:?Specify the run directory name}
 if [[ ! "$run_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
     printf '%s\n' "Invalid run directory name: $run_name" >&2
@@ -11,10 +11,7 @@ fi
 
 source "$root/scripts/environment.sh"
 activate_cann
-case "$role" in
-    decode) export NIC_NAME="$D_NIC" DSV4_MODEL="$D_MODEL_DIR" ;;
-    *) export NIC_NAME="$P_NIC" DSV4_MODEL="$P_MODEL_DIR" ;;
-esac
+export NIC_NAME="$P_NIC" DSV4_MODEL="$P_MODEL_DIR"
 export PYTHON_VLLM_PATH="$VLLM_SOURCE"
 export PYTHON_VLLM_ASCEND_PATH="$ASCEND_SOURCE"
 export PYTHON_AFD_PLUGIN_PATH="$afd_install"
@@ -27,7 +24,6 @@ export LOG_DIR="$run_root/$run_name"
 export PID_DIR="$LOG_DIR/pids"
 mkdir -p "$PID_DIR"
 export VLLM_USE_V2_MODEL_RUNNER=1
-# The PD audit reads the decoder's INFO-level KV transfer records.
 export VLLM_CONFIGURE_LOGGING=1 VLLM_LOGGING_LEVEL=INFO
 unset VLLM_LOGGING_CONFIG_PATH
 export OMP_NUM_THREADS=4
@@ -35,9 +31,7 @@ export OMP_NUM_THREADS=4
 normalize_devices() {
     python3 -c 'import sys; print(",".join(device.strip() for device in sys.argv[1].split(",")))' "$1"
 }
-D_DEVICES=$(normalize_devices "$D_DEVICES")
 P_DEVICES=$(normalize_devices "$P_DEVICES")
-export DECODE_VISIBLE_DEVICES="$D_DEVICES"
 IFS=, read -r -a p_devices <<< "$P_DEVICES"
 
 devices() {
@@ -83,53 +77,13 @@ case "$role" in
         export HCCL_OP_EXPANSION_MODE=AIV ENABLE_SHARED_EXPERT_DP=true
         select_prefill_ops
         if [[ "$role" == p0 ]]; then
-            export PREFILL_PORT=7100 PREFILL_DP_RPC_PORT=12321 PD_KV_PREFILL_PORT=30000
-            export PD_KV_PREFILL_ENGINE_ID=0 FULL_VISIBLE_DEVICES="$(devices 0 8)"
+            export PREFILL_PORT=7100 PREFILL_DP_RPC_PORT=12321
+            export FULL_VISIBLE_DEVICES="$(devices 0 8)"
         else
-            export PREFILL_PORT=7101 PREFILL_DP_RPC_PORT=12421 PD_KV_PREFILL_PORT=30200
-            export PD_KV_PREFILL_ENGINE_ID=2 FULL_VISIBLE_DEVICES="$(devices 8 8)"
+            export PREFILL_PORT=7101 PREFILL_DP_RPC_PORT=12421
+            export FULL_VISIBLE_DEVICES="$(devices 8 8)"
         fi
         record_process "$role" bash "$DSV4_SCRIPT_DIR/run_prefill_full_rank.sh"
-        ;;
-    decode)
-        case "${3:?Specify producer baseline, afd12, or afd8}" in
-            baseline) export PREFILL_DP_SIZE="$BASELINE_DP" PREFILL_TP_SIZE="$BASELINE_TP" ;;
-            afd12) export PREFILL_DP_SIZE="$AFD12_A_DP" PREFILL_TP_SIZE="$AFD12_A_TP" ;;
-            afd8) export PREFILL_DP_SIZE="$AFD8_A_DP" PREFILL_TP_SIZE="$AFD8_A_TP" ;;
-            *) echo "Unknown producer $3" >&2; exit 2 ;;
-        esac
-        # Verified D configuration from the 2026-10-20 PD smoke on these commits.
-        unset VLLM_USE_V2_MODEL_RUNNER
-        export MODEL_LOADER_THREADS=16
-        export HCCL_BUFFSIZE=256 HCCL_CONNECT_TIMEOUT=180 HCCL_EXEC_TIMEOUT=300
-        export VLLM_RPC_TIMEOUT=600000 VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=600
-        export OMP_NUM_THREADS=4
-        bash "$DSV4_SCRIPT_DIR/run_decode.sh"
-        ;;
-    proxy|proxy-afd|proxy-p0|proxy-p1)
-        case "$role" in
-            proxy)
-                proxy_port=8000
-                prefiller_hosts=("$P_NODE_IP" "$P_NODE_IP")
-                prefiller_ports=(7100 7101)
-                ;;
-            proxy-afd|proxy-p0|proxy-p1)
-                proxy_port=8000
-                prefiller_hosts=("$P_NODE_IP")
-                prefiller_ports=(7100)
-                if [[ "$role" == proxy-p0 ]]; then
-                    proxy_port=8001
-                elif [[ "$role" == proxy-p1 ]]; then
-                    proxy_port=8002
-                    prefiller_ports=(7101)
-                fi
-                ;;
-        esac
-        proxy_script="$PYTHON_VLLM_ASCEND_PATH/examples/disaggregated_prefill_v1/load_balance_proxy_server_example.py"
-        record_process "$role" python3 "$proxy_script" \
-            --host 0.0.0.0 --port "$proxy_port" \
-            --prefiller-hosts "${prefiller_hosts[@]}" --prefiller-ports "${prefiller_ports[@]}" \
-            --decoder-hosts "$D_NODE_IP" --decoder-ports 7100
         ;;
     afd)
         case "${3:?Specify 12a4f or 8a8f}" in

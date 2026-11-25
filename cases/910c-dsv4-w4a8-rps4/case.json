@@ -3,7 +3,7 @@
   "hardware": {
     "chip": "Ascend 910C",
     "prefill_dies": 16,
-    "decode_dies": 16
+    "nodes": 1
   },
   "runtime": {
     "vllm": "ced6857afa0ea7b2e3f0846a62e1394e90f15607",
@@ -11,11 +11,11 @@
     "afd": "98f45bbff76bb5165789313c1076fea5c92d8c44",
     "afd_source": "https://github.com/vllm-project/afd-plugin.git",
     "afd_package_version": "0.30.0rc2+g98f45bb",
-    "cann": "9.1.0",
-    "driver": "25.5.1.1",
+    "cann": "9.2.1",
     "torch_npu": "2.10.0.post4",
-    "cann_base_image": "quay.io/ascend/cann:9.1.0-a3-openeuler24.03-py3.12",
-    "afd_release_branch": "release/v0.30.0rc2"
+    "base_image": "quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler",
+    "base_image_digest": "sha256:0b8bf5b484d49c667ceab717347eb3a8695388429aebd9084b79fa0f57a545c0",
+    "afd_release_tag": "0.30.0rc2"
   },
   "model": {
     "name": "DeepSeek-V4-Flash W4A8 + DSpark",
@@ -60,5 +60,11 @@
       "DATASET-LICENSE.md": "05c6c4f7f153c52b0c61cce4782a0ff21b22a39da601d26bd67d70252bb537bc",
       "workload.json": "494614bbb3108116e83c88d122e18adcb71729b22942f56f50d49b1e8ae44f8f"
     }
+  },
+  "gsm8k": {
+    "source": "https://raw.githubusercontent.com/openai/grade-school-math/b0bb162abedc65e1fdd8e93ed090fd7598ee68bc/grade_school_math/data/test.jsonl",
+    "sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+    "questions": 1319,
+    "max_output_tokens": 1024
   }
 }

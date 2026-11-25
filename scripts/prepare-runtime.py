@@ -12,7 +12,10 @@ def replace_once(text, anchor, replacement):
 
 
 def adapt(source, destination):
-    shutil.copytree(source, destination)
+    destination.mkdir()
+    for name in ("common_env", "run_prefill", "run_prefill_full_rank",
+                 "run_prefill_attention", "run_prefill_ffn"):
+        shutil.copy2(source / f"{name}.sh", destination / f"{name}.sh")
     rank = destination / "run_prefill_full_rank.sh"
     text = rank.read_text()
     text = replace_once(
@@ -21,9 +24,6 @@ def adapt(source, destination):
         '  "enable_prefill_mc2": true,\n  "enable_cpu_binding": %s,',
     )
     text = replace_once(text, "--enable-chunked-prefill", "--enable-chunked-prefill --async-scheduling")
-    text = replace_once(
-        text, r'\"engine_id\": \"0\",', r'\"engine_id\": \"${PD_KV_PREFILL_ENGINE_ID:-0}\",'
-    )
     rank.write_text(text)
     attention = destination / "run_prefill_attention.sh"
     text = replace_once(
@@ -55,7 +55,7 @@ def adapt(source, destination):
     graph_args = '  "${FFN_GRAPH_ARGS[@]}" ' + "\\\n"
     probe_args = '  "${FFN_PROBE_ARGS[@]+\"${FFN_PROBE_ARGS[@]}\"}" ' + "\\\n"
     ffn.write_text(replace_once(text, graph_args, graph_args + probe_args))
-    for name in ("run_prefill_full_rank", "run_prefill_attention", "run_prefill_ffn", "run_decode"):
+    for name in ("run_prefill_full_rank", "run_prefill_attention", "run_prefill_ffn"):
         if "--no-enable-prefix-caching" not in (destination / f"{name}.sh").read_text():
             raise ValueError(f"{name} does not disable prefix caching")
 

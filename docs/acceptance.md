@@ -1,35 +1,35 @@
-# 原表要求与验收证据
+# 单机用例与验收证据
 
-| 原表要求 | 本仓执行的用例及证据 |
+| 要求 | 本仓执行的用例及证据 |
 | --- | --- |
-| vLLM、DeepSeek-V4-Flash W4A8 | 两组用同一交付 checkpoint。预检记录现场软件版本及模型配置、量化描述和 tokenizer 指纹，实际加载和 PD 冒烟验证兼容性。 |
-| 910C、1–2 节点、8–16 卡（16–32 DIE），同等卡数对照 | 固定用同一对节点顺序运行。P、D 各一台、各 8 张物理卡和 16 DIE。 |
-| 双 `DP2/TP4`，MBT=8K，入口 4 RPS | 两个独立原生 P 实例各占 8 DIE、EP8、MBT 8,192。正式请求从 PD proxy 以固定计划发出。 |
-| 完整 PD，Prefill 异步 A/F | AFD 12A+4F 使用 Async CAM。正式回放逐请求核对 D 端 KV 传输，并验证四个 F rank 的 FULL 图捕获和实际重放。发压前核对 12 个 A rank 的共享专家 DP 都已生效。 |
-| A/F 灵活配比 | 12A+4F 做正式性能对照。8A+8F 以已验证的 Eager 设置实际接收请求，通过异步 A/F、P→D KV 和生成检查。 |
-| 平均 TTFT 降低至少 20% | 两组播放同一份请求后计算 `1 - AFD 平均 TTFT / 同轮双 EP8 平均 TTFT`。 |
+| vLLM、DeepSeek-V4-Flash W4A8 | 两组使用同一交付 checkpoint 和运行镜像。预检记录现场软件版本、模型指纹及权重分片。 |
+| 单台 910C、同等卡数 | 在同一台 910C 的 8 张物理卡、16 个逻辑 DIE 上顺序运行。 |
+| 双 `DP2/TP4`、MBT 8K、入口 4 RPS | 两个原生 EP8 实例各占 8 DIE。客户端向本机两个实例按会话交替分流，正式请求使用固定发送计划。 |
+| 单机 Prefill、异步 A/F | 每条请求由本机前端返回 1 token。AFD 验证 12 个 A rank 的共享专家 DP 和 4 个 F rank 的 FULL 图实际重放。 |
+| A/F 灵活配比 | 12A+4F 做正式性能对照。8A+8F 用 Eager 单机配置跑长短请求，核对首 token 结果。 |
+| 平均 TTFT 降低至少 20% | 按同轮双 EP8 基线计算 `1 - AFD 平均 TTFT / 双 EP8 平均 TTFT`。 |
+| GSM8K | 同一镜像和权重，独立运行官方测试集。报告两组数值答案正确率和差值。 |
 
 ## 执行配置
 
-两组都关闭 CWS，使用现场 vLLM-Ascend 的原生算子。
+两组均关闭 CWS 和 Prefix Cache，使用现场 vLLM-Ascend 原生算子。
 
 | 项目 | 双 EP8 基线 | AFD 12A+4F |
 | --- | --- | --- |
-| P 节点 | 两套 DP2/TP4/EP8 | A DP3/TP4，F DP4/TP1/EP4 |
-| MBT | P 8,192 | A/F 各 16,384 |
-| P 执行 | MRV2、异步调度、Prefill MC2（`enable_prefill_mc2=true`） | A 侧 MRV2、Eager + 双微批 DBO，设置 `enable_shared_expert_dp=true`。F 侧 Async CAM layered W4A8 GMM、FULL。 |
+| 并行 | 两套 DP2/TP4/EP8 | A DP3/TP4，F DP4/TP1/EP4 |
+| MBT | 8,192 | A/F 各 16,384 |
+| 执行 | MRV2、异步调度、Prefill MC2 | A 侧 MRV2、Eager + 双微批 DBO、共享专家 DP 开启。F 侧 Async CAM layered W4A8 GMM、FULL。 |
 | 每 DP 最大序列数 | 8 | A/F 各 16 |
-| P 侧显存利用率参数 | 0.9 | A/F 各 0.7 |
-| D 节点 | DP16/TP1/EP16、MBT 120、每 DP 最多 2 序列、主模型 FULL_DECODE_ONLY、DSpark 5-token draft Eager | 使用同规格 D，KV 生产者拓扑填 A 的 DP3/TP4 |
+| 显存利用率参数 | 0.9 | A/F 各 0.7 |
 
-AFD 固定使用基于 `v0.30.0rc2`、包含共享专家 DP 修复的提交。 [固定版本](../cases/910c-dsv4-w4a8-rps4/case.json)
-
-灵活配比用例采用 A DP4/TP2、F DP8/TP1/EP8，A/F MBT 16,384，F Eager，A 侧共享专家 DP 关闭。 [配置入口](../cases/910c-dsv4-w4a8-rps4/config.env)
+8A+8F 用例为 A DP4/TP2、F DP8/TP1/EP8，A/F MBT 16,384，F Eager，A 侧共享专家 DP 关闭。[配置入口](../cases/910c-dsv4-w4a8-rps4/config.env) · [固定版本](../cases/910c-dsv4-w4a8-rps4/case.json)
 
 ## 计时和判定
 
-每组冒烟后使用同一份 16 条独立预热请求，再以固定顺序发 1,200 条正式请求。每 250 毫秒一个发送时隙，同会话的后轮等待前轮完成。两组都关闭 prefix cache，每条请求输出 1 token。客户端从发出流式请求到收到首个生成 token 计 TTFT。
+每组先使用相同的 16 条预热请求，再以固定顺序发 1,200 条正式请求。每 250 ms 一个发送时隙，同会话的后一轮等待前一轮完成。客户端从发出请求到收到首个生成 token 计 TTFT。
 
-脚本核对两组的负载指纹、发送顺序、完成状态、实发 4 RPS（允许 0.01 RPS 的调度误差）、零依赖空时隙和逐请求 P→D KV 传输。平均 TTFT 是原表性能判定指标。P50、P95 及可采集到的 P 侧排队和 Prefill 时间用于分析性能差异。
+脚本核对负载指纹、发送顺序、完成状态、输入和输出 token 数、实发 4 RPS（允许 0.01 RPS 调度误差）及零依赖空时隙。P50、P95 和可采集到的排队及 Prefill 时间随结果记录。
 
-复测低于 20% 时，可用运行证据核对负载、实发速率、KV 传输、A 侧共享权重布局和 F FULL 重放。
+## GSM8K 评分
+
+运行官方 1,319 道测试题。两组使用相同提示模板、温度 0、并发 32，每题最多生成 1,024 token。生成遇到 `Question:` 等停止标记就结束，从 `####` 后提取最后一个数值并与参考答案比较。缺少可解析数值计为答错。逐题记录和汇总保存在独立运行目录，正确率暂不设通过门槛。[GSM8K 停止标记](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/tasks/gsm8k/gsm8k.yaml)

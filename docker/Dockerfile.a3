@@ -13,10 +13,18 @@ RUN python3 -m pip uninstall -y vllm-ascend \
     && git -C /vllm-workspace/vllm-ascend checkout --detach FETCH_HEAD \
     && git -C /vllm-workspace/vllm-ascend submodule update --init --recursive
 
+ARG PYPI_INDEX_URL=https://pypi.org/simple
+
+RUN python3 -m pip install --no-cache-dir \
+        --index-url "$PYPI_INDEX_URL" \
+        --extra-index-url https://download.pytorch.org/whl/cpu/ \
+        --extra-index-url https://mirrors.huaweicloud.com/ascend/repos/pypi \
+        -r /vllm-workspace/vllm-ascend/requirements.txt
+
+# The base image's FLA NPU .pth can shadow the custom-op schemas during compilation.
 RUN source /usr/local/Ascend/ascend-toolkit/set_env.sh \
     && source /usr/local/Ascend/nnal/atb/set_env.sh \
-    && COMPILE_CUSTOM_KERNELS=1 SOC_VERSION=ascend910_9391 VLLM_BATCH_INVARIANT=1 \
-        python3 -m pip install --no-cache-dir \
-          --extra-index-url https://download.pytorch.org/whl/cpu/ \
-          --extra-index-url https://mirrors.huaweicloud.com/ascend/repos/pypi \
-          -e /vllm-workspace/vllm-ascend
+    && FLA_NPU_DISABLE_PTH=1 CMAKE_BUILD_PARALLEL_LEVEL=16 \
+        COMPILE_CUSTOM_KERNELS=1 SOC_VERSION=ascend910_9391 VLLM_BATCH_INVARIANT=1 \
+        python3 -m pip install --no-cache-dir --no-deps --no-build-isolation \
+        -e /vllm-workspace/vllm-ascend
