@@ -1,10 +1,8 @@
-# DeepSeek-V4-Flash W4A8 AFD 性能验收
+# DeepSeek-V4-Flash W4A8 AFD 性能与精度验收
 
 正式验收使用 [`v0.3.0`](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.3.0)。
 
 性能验收在**一台 Ascend 910C** 上顺序比较原生双 EP8 8K 与 AFD 12A+4F 16K。两组使用同一镜像、权重和冻结请求，每条输出 **1 token**。验收按现场同轮基线计算平均 TTFT 降幅，要求达到 **20%**。
-
-先[获取正式版本仓库](docs/build-environment-910c.md#获取验收仓)。已有验收镜像 `afd-910c-acceptance:single-rc2` 和权重时，接着[启动容器](docs/build-environment-910c.md#3-启动容器)。需要准备验收镜像时，按指南[从官方底座回退 vLLM-Ascend](docs/build-environment-910c.md#1-从官方镜像回退-vllm-ascend)。
 
 ## 运行环境与版本
 
@@ -21,20 +19,102 @@
 
 ## 上机验收
 
-在 **910C 容器的验收仓根目录**按[上机指南](docs/reproduce-910c.md)填写 `site.env`，然后执行性能验收。
+### 1. 在宿主机获取验收仓
+
+需要一台 Ascend 910C（8 张物理卡、16 个逻辑 DIE）、ARM64 Linux、Docker，以及上表的模型权重。已有权重时，记下宿主机上的权重目录。[权重获取方法](docs/build-environment-910c.md#2-准备权重路径)
+
+~~~bash
+git clone --branch v0.3.0 --depth 1 https://github.com/jiaran-king/afd-dsv4-performance-acceptance.git
+cd afd-dsv4-performance-acceptance
+~~~
+
+### 2. 在宿主机准备镜像并启动容器
+
+已有验收镜像 `afd-910c-acceptance:single-rc2` 时直接启动容器。需要从官方底座构建时，在验收仓根目录执行下面一行。
+
+~~~bash
+docker build --platform linux/arm64 -f docker/Dockerfile.a3 -t afd-910c-acceptance:single-rc2 docker
+~~~
+
+这条命令从官方 `quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler` 获取底座，沿用其中的 vLLM 和 CANN，把 vLLM-Ascend 回退到 `8d4409d6` 并重新编译 A3 算子。Dockerfile 在编译时自动设置 `FLA_NPU_DISABLE_PTH=1`，避免底座预装的 FLA 抢先注册同名算子。[Dockerfile](docker/Dockerfile.a3)
+
+在宿主机的验收仓根目录用 Bash 执行下列命令。将 `MODEL_DIR` 改为宿主机权重的绝对路径。用 `npu-smi info -m` 查看本次可用的 16 个逻辑 DIE，将编号填入 `DIE_IDS`。如本地验收镜像用了其他名称，相应修改 `IMAGE`。
+
+~~~bash
+MODEL_DIR=/models/dsv4-flash-w4a8-dspark
+IMAGE=afd-910c-acceptance:single-rc2
+DIE_IDS=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+devices=()
+for die in "${DIE_IDS[@]}"; do devices+=(--device "/dev/davinci$die"); done
+docker run --rm -it --network host --ipc host \
+  "${devices[@]}" --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro \
+  -v /usr/local/dcmi:/usr/local/dcmi:ro \
+  -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
+  -v /etc/ascend_install.info:/etc/ascend_install.info:ro \
+  -v "$MODEL_DIR:/models/dsv4:ro" -v "$PWD:/work/acceptance" \
+  -w /work/acceptance "$IMAGE" bash
+~~~
+
+命令将仓库和权重分别挂到容器内的 `/work/acceptance` 和 `/models/dsv4`，并进入容器的仓库根目录。可在容器内执行 `git -C /vllm-workspace/vllm-ascend rev-parse --short=8 HEAD`，核对回退后的提交为 `8d4409d6`。
+
+### 3. 在容器内填写 site.env
+
+首次配置时复制模板，并查看容器内的网卡和逻辑 DIE 编号。
+
+~~~bash
+cp site.env.example site.env
+ip -br -4 addr
+npu-smi info -m
+~~~
+
+打开 `site.env`，按下表修改并保存。
+
+| 字段 | 填写方法 |
+| --- | --- |
+| `P_NODE_IP` | 从 `ip -br -4 addr` 选择供 HCCL / Gloo 使用的网卡，只填这一行的 IPv4 地址。 |
+| `P_NIC` | 填同一行的网卡名。 |
+| `P_DEVICES` | 填 `npu-smi info -m` 的 `Chip Logic ID` 列中本次使用的 16 个编号，以逗号分隔。 |
+| `P_MODEL_DIR` | 填容器内的权重路径，按上一步挂载时填 `/models/dsv4`。 |
+
+上述镜像使用模板中 `VLLM_SOURCE`、`ASCEND_SOURCE` 和 `CANN_ROOT` 的默认值。首次上机可用 `./reproduce.sh --site site.env --smoke-only` 检查双 EP8 和 12A+4F 是否能加载模型并返回首 token。
+
+### 4. 依次运行性能和精度验收
+
+在容器内的验收仓根目录依次执行。第一条运行性能验收，第二条运行 GSM8K 精度验收。
 
 ~~~bash
 ./reproduce.sh --site site.env
-~~~
-
-默认性能用例为双 EP8 8K 对 **12A+4F、A 侧 DP3/TP4、A/F MBT 16K、F FULL、A 侧 `enable_shared_expert_dp=true`**。另跑 8A+8F 单机首 token 冒烟验证灵活配比。结果写入 `runs/<run-id>/acceptance.json`，同目录保留逐请求计时和运行证据。
-
-用下列命令验收 GSM8K。双 EP8 和 AFD 分别跑同一批前 300 题的 0-shot 和 8-shot。结果在 `runs/<run-id>/gsm8k.json`，两套都满足 AFD 最多落后双 EP8 **1.5 个百分点**才通过。
-
-~~~bash
 ./reproduce.sh --site site.env --gsm8k
 ~~~
 
-[原表要求与判定](docs/acceptance.md) · [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
+脚本自动准备固定版本的 AFD，并顺序启动双 EP8 与 AFD。性能入口会自动获取并校验冻结请求包。
+
+### 5. 查看两份验收报告
+
+每次运行会在终端提示 `Artifacts are in ...`。在各自提示的目录查看对应报告。
+
+| 报告 | 通过条件 |
+| --- | --- |
+| 性能 `acceptance.json` | `acceptance_passed` 为 `true`。平均 TTFT 相对同轮双 EP8 基线至少降低 **20%**，并通过 8A+8F 冒烟。 |
+| 精度 `gsm8k.json` | `gsm8k_passed` 为 `true`。0-shot 和 8-shot 各自要求 AFD 正确率最多落后双 EP8 **1.5 个百分点**。 |
+
+逐请求计时、逐题作答和服务日志保存在各自的运行目录。AFD 准备日志为 `prepare.log`。
+
+## 测试设计
+
+### 性能
+
+两组在同一台 910C 上顺序运行，使用相同镜像、权重和请求。基线为双 EP8、MBT 8K，AFD 为 12A+4F、A 侧 DP3/TP4、A/F MBT 16K、F 侧 FULL 图、A 侧 `enable_shared_expert_dp=true`。验收会核对 F 侧实际重放 FULL 图，并用 8A+8F 的长短请求验证该配比能返回首 token。
+
+两组各用 16 条请求预热，再以固定顺序按 4 RPS 发送 1,200 条正式请求。关闭 Prefix Cache，每条请求输出 1 token。TTFT 从客户端发出请求计到接收首个生成 token。
+
+性能负载来自 AllenAI 的 **WildChat-4.8M**，内容是真实用户与 ChatGPT 的多轮对话。[上游数据集](https://huggingface.co/datasets/allenai/WildChat-4.8M/tree/c827c6df8fcf008219ffaffa4d1dd77491099367)
+
+### 精度
+
+双 EP8 和 AFD 各运行 GSM8K 官方测试集的前 300 题，分别做 0-shot 和 8-shot。0-shot 直接给题目和答案格式要求，8-shot 额外提供 8 道带解答的示例。同一场景的两组使用相同提示词和生成设置，按最终数值答案评分。
+
+[环境构建细节](docs/build-environment-910c.md) · [上机与日志参考](docs/reproduce-910c.md) · [用例参数和评分规则](docs/acceptance.md) · [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
 
 [历史双机 PD 复现](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/tree/e60348b0c9f9c48b28711e15fb5bf061d52ad38a)
