@@ -31,7 +31,16 @@ export LOG_DIR="$run_root/$run_name"
 export PID_DIR="$LOG_DIR/pids"
 mkdir -p "$PID_DIR"
 export VLLM_USE_V2_MODEL_RUNNER=1
+# The PD audit reads the decoder's INFO-level KV transfer records.
+export VLLM_CONFIGURE_LOGGING=1 VLLM_LOGGING_LEVEL=INFO
+unset VLLM_LOGGING_CONFIG_PATH
 export OMP_NUM_THREADS=4
+
+normalize_devices() {
+    python3 -c 'import sys; print(",".join(device.strip() for device in sys.argv[1].split(",")))' "$1"
+}
+D_DEVICES=$(normalize_devices "$D_DEVICES")
+P_DEVICES=$(normalize_devices "$P_DEVICES")
 export DECODE_VISIBLE_DEVICES="$D_DEVICES"
 IFS=, read -r -a p_devices <<< "$P_DEVICES"
 

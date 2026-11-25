@@ -32,6 +32,11 @@
       "quant_model_description.json": "a2e85871ba049d8b475bb5de5b75a79b6fedb577eefc2ae86d57879143431b60",
       "tokenizer.json": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf"
     },
+    "json_sha256": {
+      "config.json": "24a49aac9e47d3e9f14b0a7db12ed9a8e753a6ce4c3f19e5cfa151fb55065cd7",
+      "quant_model_description.json": "31f03834d27784cb969b629b943015baf7a615ad361607a47780cc86e0952861",
+      "tokenizer.json": "b987b271087f382191dc6000ce3bb5f4dac055e4db542e4a45ba0f71abc6513a"
+    },
     "safetensors_shards": 42
   },
   "load": {

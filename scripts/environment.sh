@@ -14,3 +14,10 @@ ASCEND_SOURCE=${ASCEND_SOURCE:-/vllm-workspace/vllm-ascend}
 CANN_ROOT=${CANN_ROOT:-/usr/local/Ascend/cann}
 source "$case_dir/config.env"
 export P_NODE_IP D_NODE_IP
+
+# Keep site proxies available for downloads. PD traffic uses the data network.
+no_proxy=${no_proxy:-${NO_PROXY:-}}
+if [[ "$no_proxy" != '*' ]]; then
+    no_proxy="${no_proxy:+$no_proxy,}$P_NODE_IP,$D_NODE_IP"
+fi
+export no_proxy NO_PROXY="$no_proxy"

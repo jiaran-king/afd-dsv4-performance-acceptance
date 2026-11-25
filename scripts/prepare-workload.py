@@ -40,9 +40,7 @@ def download(path, url, expected):
         pending.unlink(missing_ok=True)
 
 
-def unpack(path, output, split_files, expected):
-    if sha(path) != expected:
-        raise ValueError(f"Release asset checksum mismatch: {path}")
+def unpack(path, output, split_files):
     if output.exists():
         for name, sha256 in split_files.items():
             if sha(output / name) != sha256:
@@ -81,7 +79,7 @@ def main():
         url = f"{RELEASES}/{load['release']}/{load['asset']}"
         download(archive, url, load["asset_sha256"])
     output = args.runtime / "workload"
-    unpack(archive, output, splits, load["asset_sha256"])
+    unpack(archive, output, splits)
     print(f"Verified frozen inputs at {output}")
 
 

@@ -120,9 +120,16 @@ for role in P D; do
         P) model=${P_MODEL_DIR:?}; devices=${P_DEVICES:?} ;;
         D) model=${D_MODEL_DIR:?}; devices=${D_DEVICES:?} ;;
     esac
+    case "$mode:$role" in
+        --prepare-only:*) ports=() ;;
+        *:D) ports=(7100) ;;
+        --resume-afd:P) ports=(7100 7101 8000) ;;
+        :P) ports=(7100 7101 8000 8001 8002) ;;
+    esac
     node "$role" python3 -B "$shared/scripts/preflight.py" "$role" "$model" "$devices" \
         "${VLLM_SOURCE:-/vllm-workspace/vllm}" "${ASCEND_SOURCE:-/vllm-workspace/vllm-ascend}" \
-        "${CANN_ROOT:-/usr/local/Ascend/cann}" "${P_NODE_IP:?}" "${D_NODE_IP:?}" "$run/$role-preflight.json"
+        "${CANN_ROOT:-/usr/local/Ascend/cann}" "${P_NODE_IP:?}" "${D_NODE_IP:?}" "$run/$role-preflight.json" \
+        "${ports[@]+"${ports[@]}"}"
 done
 
 asset_args=()
@@ -131,10 +138,8 @@ node P python3 -B "$shared/scripts/prepare-workload.py" "${asset_args[@]+"${asse
 workload="$shared/.runtime/workload/formal-candidate/requests.jsonl"
 if [[ "$mode" == --resume-afd ]]; then
     for role in P D; do
-        if ! node P cmp -s "$baseline_run/$role-preflight.json" "$run/$role-preflight.json"; then
-            printf '%s\n' "The $role preflight differs from the saved baseline. Run the full case again." >&2
-            exit 1
-        fi
+        node P python3 -B "$shared/scripts/preflight.py" --compare-baseline \
+            "$baseline_run/$role-preflight.json" "$run/$role-preflight.json"
     done
     node P python3 -B "$shared/scripts/audit.py" "$workload" "$baseline_run/baseline-formal" \
         --baseline-warmup "$baseline_run/baseline-warmup" --check --output "$run/baseline-audit.json" >/dev/null

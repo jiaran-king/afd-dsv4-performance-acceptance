@@ -16,32 +16,47 @@ healthy() {
 ready() {
     healthy "http://$D_NODE_IP:7100/health" &&
     healthy "http://$P_NODE_IP:7100/health" || return 1
-    case "$group" in
-        baseline) healthy "http://$P_NODE_IP:7101/health" ;;
-        afd12|afd8)
-            local need count
-            if [[ "$group" == afd12 ]]; then need=4; else need=8; fi
-            count=$(grep -c 'workers run connector loop' "$p_run/prefill_ffn_node0.log" || true)
-            [[ "$count" -ge "$need" ]]
-            ;;
-    esac
+    if [[ "$group" == baseline ]]; then
+        healthy "http://$P_NODE_IP:7101/health"
+    fi
+}
+
+wait_for_startup() {
+    if (( SECONDS >= deadline )); then
+        echo "Startup timed out waiting for $1. See $p_run and $d_run." >&2
+        exit 1
+    fi
+    sleep 5
 }
 
 deadline=$((SECONDS + ${STARTUP_TIMEOUT_SECONDS:-1200}))
 until ready; do
-    if (( SECONDS >= deadline )); then
-        echo "Startup timed out. See $p_run and $d_run." >&2
-        exit 1
-    fi
-    sleep 5
+    wait_for_startup "P/D HTTP health"
 done
+
+smoke() {
+    local port=$1 output=$2
+    shift 2
+    python3 -B "$root/scripts/smoke.py" --proxy "$P_NODE_IP:$port" --decoder "$D_NODE_IP:7100" \
+        --decode-log "$d_run/decode.log" --output "$output" "$@"
+}
 
 probe() {
     local port=$1 label=$2
-    python3 -B "$root/scripts/smoke.py" --proxy "$P_NODE_IP:$port" --decoder "$D_NODE_IP:7100" \
-        --decode-log "$d_run/decode.log" --output "$p_run/$label-short"
-    python3 -B "$root/scripts/smoke.py" --proxy "$P_NODE_IP:$port" --decoder "$D_NODE_IP:7100" \
-        --decode-log "$d_run/decode.log" --output "$p_run/$label-long" --dataset "$smoke_data" --min-prompt-tokens 32000
+    if [[ "$group" == baseline ]]; then
+        smoke "$port" "$p_run/$label-short"
+    else
+        local attempt=1 startup_dir="$p_run/$label-startup-1"
+        until smoke "$port" "$startup_dir"; do
+            # A completed request with a failed KV check is an acceptance failure.
+            [[ ! -f "$startup_dir/result.json" ]] || return 1
+            wait_for_startup "the short AFD PD request"
+            attempt=$((attempt + 1))
+            startup_dir="$p_run/$label-startup-$attempt"
+        done
+        mv -- "$startup_dir" "$p_run/$label-short"
+    fi
+    smoke "$port" "$p_run/$label-long" --dataset "$smoke_data" --min-prompt-tokens 32000
 }
 
 if [[ "$group" == baseline ]]; then
