@@ -1,43 +1,16 @@
 # Ascend 910C 上机验收
 
-下面从 **P 容器**发起，通过 SSH 在 **D 容器**执行命令。现场需要交付版仓库标签或提交、镜像地址和权重版本。
+从 **P 容器**发起验收，通过 SSH 在 **D 容器**执行命令。使用实测的 **A3/openEuler、CANN `9.1.0`** 镜像组合。已有约定镜像和同版权重时，从第 1 步开始。[正式验收版本](../README.md#运行环境与版本) · [重建原实测镜像](#重建原实测镜像) · [下载权重](#下载权重)
 
-## 1. 准备环境
+## 开始前
 
-- **两台 Ascend 910C。** P 负责 Prefill，D 负责 Decode。按现场分配确认两端各有 **8 张物理卡、16 个逻辑 DIE** 供本次测试独占。
-- **运行环境和权重。** 使用现场的 aarch64 vLLM、vLLM-Ascend 和 CANN 环境，两端挂载同一版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。预检检查权重分片是否齐全，并记录现场软件版本和模型配置指纹。通过算子加载和 PD 冒烟确认兼容性。[公开获取步骤](#从公开来源准备镜像和权重) · [目标版本](../cases/910c-dsv4-w4a8-rps4/case.json)
-- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓。P 能创建运行目录，P、D 都能向这个目录写入。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。 [端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L89-L95)
+- **两台 Ascend 910C。** P 负责 Prefill，D 负责 Decode。两端各分配 **8 张物理卡、16 个逻辑 DIE** 供本次测试独占。
+- **模型权重。** 两端挂载同一版本的 **DeepSeek-V4-Flash W4A8 + DSpark** checkpoint。
+- **共享目录和网络。** 两个容器通过同一个绝对路径访问验收仓，且都能写入该目录。P 能通过 SSH 在 D 容器内执行命令。P、D 的 Mooncake 数据网互通，开放用例使用的 HTTP、DP RPC 和 KV 端口。[端口配置](../cases/910c-dsv4-w4a8-rps4/config.env) · [双 EP8 端口分配](../scripts/launch.sh#L89-L95)
 
-### 从公开来源准备镜像和权重
+## 1. 填写 `site.env`
 
-已有约定镜像和权重时，直接进入第 2 节。需要复现实测的 CANN `9.1.0` 组合时，按文末步骤构建。[重建原实测镜像](#重建原实测镜像)
-
-要试用官方成品镜像的派生方案，在装有 Docker 的 ARM64 构建机上检出交付版验收仓，在仓库根目录执行。
-
-~~~bash
-docker build --platform linux/arm64 -f docker/Dockerfile.a3 -t afd-910c-acceptance:official .
-~~~
-
-这个命令从官方 `quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler` 拉取基础镜像，复用 vLLM `v0.30.0`，并重新安装和编译 vLLM-Ascend `8d4409d6`。派生镜像使用 CANN `9.2.1`，待完成构建、PD 冒烟和正式配对验证。[派生 Dockerfile](../docker/Dockerfile.a3)
-
-将构建结果分发到两台 910C，用同一个镜像启动 P、D 容器。按官方 A3 安装示例映射设备，挂载验收共享目录和权重目录。[官方 A3 安装示例](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image)
-
-在装有 Git LFS 的机器上下载固定版本的权重，将本地目录替换为现场路径。P、D 挂载同一版本。[ModelScope 权重](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) · [安装 Git LFS](https://git-lfs.com/)
-
-~~~bash
-MODEL_DIR=/models/dsv4-flash-w4a8-dspark
-git clone --no-checkout \
-  https://www.modelscope.cn/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test.git "$MODEL_DIR"
-git -C "$MODEL_DIR" lfs install --local --skip-smudge
-git -C "$MODEL_DIR" checkout --detach 59b8e36964b964140dad8e580e14247564744ac9
-git -C "$MODEL_DIR" lfs pull
-~~~
-
-验收命令获取官方 AFD 标签 `0.30.0rc2` 对应的固定提交，在 P 容器中构建算子。[官方标签](https://github.com/vllm-project/afd-plugin/tree/0.30.0rc2) · [AFD 固定提交](../cases/910c-dsv4-w4a8-rps4/case.json)
-
-## 2. 克隆仓库并填写 `site.env`
-
-在 **P 容器**的共享目录下执行。将 `/shared` 和 `ACCEPTANCE_REF` 换成现场目录和交付版本。
+已有交付版验收仓时，在 **P 容器**的仓库根目录将 `site.env.example` 复制为 `site.env`。首次获取验收仓时，在 P 容器执行下列命令，将 `/shared` 和 `ACCEPTANCE_REF` 换成现场目录和交付版本。
 
 ~~~bash
 cd /shared
@@ -77,11 +50,7 @@ D_SSH=tester@decode-host.example
 D_CONTAINER=afd-d
 ~~~
 
-## 3. 准备冻结负载
-
-验收命令会自动下载并校验冻结请求包。已下载请求包时，可在 `site.env` 中用 `WORKLOAD_ARCHIVE` 指定 P 容器内的文件路径。 [冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
-
-## 4. 运行并查看结果
+## 2. 运行验收
 
 在 **P 容器的验收仓根目录**执行。
 
@@ -89,11 +58,19 @@ D_CONTAINER=afd-d
 ./reproduce.sh --site site.env
 ~~~
 
-验收命令在同一对节点上跑**双 EP8 8K 基线、12A+4F AFD 16K 性能对照和 8A+8F PD 冒烟**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。 [验收配置与判定](acceptance.md)
+命令会自动下载并校验冻结请求包，然后跑**双 EP8 8K 基线、12A+4F AFD 16K 性能对照和 8A+8F PD 冒烟**。两组性能测试使用同一份 **1,200 条冻结请求、固定 4 RPS**，每组正式发压约 5 分钟，构建、模型加载和预热另计。[验收配置与判定](acceptance.md)
+
+已有冻结请求包时，可以在 `site.env` 中用 `WORKLOAD_ARCHIVE` 指定 P 容器内的文件路径。[冻结请求包](https://github.com/jiaran-king/afd-dsv4-performance-acceptance/releases/tag/v0.1.0)
+
+验收命令获取官方 AFD 标签 `0.30.0rc2` 对应的固定提交，在 P 容器中构建算子。[官方标签](https://github.com/vllm-project/afd-plugin/tree/0.30.0rc2) · [AFD 固定提交](../cases/910c-dsv4-w4a8-rps4/case.json)
+
+## 3. 查看结果
 
 打开正式运行生成的 `runs/<run-id>/acceptance.json`。**`acceptance_passed` 为 `true` 即通过**。`reduction_pct` 是相对**现场同轮双 EP8 基线**的平均 TTFT 降幅，门槛为**至少 20%**。`environment` 记录两端实际软件版本和本轮准备的算子。若脚本中途退出，保留终端报错和该次运行目录供定位。
 
 若报错提示运行锁 `runs/.active`，按给出的运行目录和 PID 文件在对应容器确认上一轮服务已退出，再清理锁并重跑。
+
+## 续跑 AFD
 
 若本用例的无 CWS 双 EP8 基线已完成，可以在原 P/D 容器、同一份权重、软件栈和设备配置下续跑 AFD 与配比检查。将 `RUN_ID` 填为原运行目录名。
 
@@ -113,4 +90,19 @@ docker build --platform linux/arm64 \
   -f vllm-ascend/Dockerfile.a3.openEuler \
   --build-arg VLLM_COMMIT=ced6857afa0ea7b2e3f0846a62e1394e90f15607 \
   -t afd-910c-acceptance:base vllm-ascend
+~~~
+
+用同一个镜像启动 P、D 容器，映射 Ascend 设备，并挂载验收共享目录和权重目录。[该版本的官方安装指南](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/docs/source/getting_started/installation.md#installation-prebuilt-image)
+
+## 下载权重
+
+在装有 Git LFS 的机器上下载固定版本的权重，将本地目录替换为现场路径。P、D 挂载同一版本。[ModelScope 权重](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) · [安装 Git LFS](https://git-lfs.com/)
+
+~~~bash
+MODEL_DIR=/models/dsv4-flash-w4a8-dspark
+git clone --no-checkout \
+  https://www.modelscope.cn/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test.git "$MODEL_DIR"
+git -C "$MODEL_DIR" lfs install --local --skip-smudge
+git -C "$MODEL_DIR" checkout --detach 59b8e36964b964140dad8e580e14247564744ac9
+git -C "$MODEL_DIR" lfs pull
 ~~~

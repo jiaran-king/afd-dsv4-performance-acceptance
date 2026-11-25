@@ -2,12 +2,13 @@
 
 在同一对 Ascend 910C 节点上，以相同设备预算和完整 PD 分离比较原生双 EP8 8K 与 AFD 12A+4F。两组关闭 CWS。验收按现场同轮基线计算平均 TTFT 降幅，要求达到 **20%**。
 
+正式验收使用已实测的 **A3/openEuler、CANN `9.1.0`** 环境。两端已有约定镜像和权重时，按指南从填写 `site.env` 开始。[上机指南](docs/reproduce-910c.md) · [重建原实测镜像](docs/reproduce-910c.md#重建原实测镜像)
+
 ## 运行环境与版本
 
 | 组件 | 本用例版本 | 公开来源 |
 | --- | --- | --- |
 | 实测运行镜像 | aarch64 · A3/openEuler 24.03 · Python 3.12 · CANN 9.1.0 | 基础镜像 `quay.io/ascend/cann:9.1.0-a3-openeuler24.03-py3.12`。[官方 A3 Dockerfile](https://github.com/vllm-project/vllm-ascend/blob/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6/Dockerfile.a3.openEuler) |
-| 派生镜像底座（待上机验证） | `quay.io/ascend/vllm-ascend:v0.30.0-a3-openeuler` · CANN 9.2.1 | [官方镜像](https://docs.vllm.ai/projects/ascend/en/v0.30.0/getting_started/installation.html#installation-prebuilt-image) · [派生 Dockerfile](docker/Dockerfile.a3) |
 | 模型权重 | DeepSeek-V4-Flash W4A8 + DSpark，revision `59b8e36964b964140dad8e580e14247564744ac9` | [ModelScope 模型 UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test](https://www.modelscope.cn/models/UploadWeight/DeepSeek-V4-Flash-DSpark-w4a8-test) |
 | vLLM | 官方标签 `v0.30.0` · `ced6857afa0ea7b2e3f0846a62e1394e90f15607` | [官方提交](https://github.com/vllm-project/vllm/commit/ced6857afa0ea7b2e3f0846a62e1394e90f15607) |
 | vLLM-Ascend | 构建提交 `8d4409d6256d8a6729140ddcc0d1889e3f96cdd6` | [获取起点 `v0.30.0rc1`](https://github.com/vllm-project/vllm-ascend/tree/v0.30.0rc1) · [官方提交](https://github.com/vllm-project/vllm-ascend/commit/8d4409d6256d8a6729140ddcc0d1889e3f96cdd6) |
@@ -15,11 +16,11 @@
 
 vLLM-Ascend 的构建提交在 `v0.30.0rc1` 的历史中，实测包版本为 `0.19.1rc2.dev2448+g8d4409d62`。
 
-实测使用的 Ascend 驱动为 `25.5.1.1`，`torch-npu` 为 `2.10.0.post4`。派生镜像复用官方镜像中的 vLLM，按表中的提交重建 vLLM-Ascend 和 A3 自定义算子。现场已有兼容镜像和同版权重时可以直接使用，验收会记录实际版本。[镜像构建和权重下载](docs/reproduce-910c.md#从公开来源准备镜像和权重) · [用例配置](cases/910c-dsv4-w4a8-rps4/case.json)
+实测使用的 Ascend 驱动为 `25.5.1.1`，`torch-npu` 为 `2.10.0.post4`。验收会记录现场实际版本。[下载权重](docs/reproduce-910c.md#下载权重) · [用例配置](cases/910c-dsv4-w4a8-rps4/case.json)
 
 ## 上机验收
 
-准备同一对各有 16 DIE 的 910C 节点，按指南填写 `site.env`，从 P 容器执行以下命令。[上机指南](docs/reproduce-910c.md)
+在 **P 容器的验收仓根目录**运行。
 
 ~~~bash
 ./reproduce.sh --site site.env
