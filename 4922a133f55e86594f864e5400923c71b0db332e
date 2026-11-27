@@ -1,0 +1,39 @@
+README.md
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 3-4,7,24,32
+cases/910c-dsv4-w4a8-rps4/gsm8k-first300.jsonl
+  s_a6678aeb6e34fc::t_ff54f54d209994 1-300
+cases/910c-dsv4-w4a8-rps4/case.json
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 65-78
+cases/910c-dsv4-w4a8-rps4/GSM8K-LICENSE
+  s_a6678aeb6e34fc::t_ff54f54d209994 1-21
+reproduce.sh
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 72
+docs/reproduce-910c.md
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 3,20-22,32,40
+docs/acceptance.md
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 11,35-46
+scripts/run-group.sh
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 35
+site.env.example
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 7
+docs/build-environment-910c.md
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 7,10,39,43,53
+THIRD_PARTY_NOTICES.md
+  s_a6678aeb6e34fc::t_a7d9d48dc541f7 5-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4922a133f55e86594f864e5400923c71b0db332e",
+  "prompts": {},
+  "sessions": {
+    "s_a6678aeb6e34fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a21069-b54f-7c10-b60a-0681eed07eb7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

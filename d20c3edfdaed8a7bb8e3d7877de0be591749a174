@@ -1,0 +1,19 @@
+docs/reproduce-910c.md
+  s_4142e4d823eacb::t_f0595838f9ecbe 78,81,83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d20c3edfdaed8a7bb8e3d7877de0be591749a174",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

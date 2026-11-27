@@ -1,0 +1,23 @@
+docs/reproduce-910c.md
+  s_a6678aeb6e34fc::t_4db5b945e7dac7 18
+README.md
+  s_a6678aeb6e34fc::t_4db5b945e7dac7 24,33,59-60,73,77-79,86,90-94,98,109
+docs/build-environment-910c.md
+  s_a6678aeb6e34fc::t_4db5b945e7dac7 49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "16f4c2102069840ce69ae0676a74586b4df10fb3",
+  "prompts": {},
+  "sessions": {
+    "s_a6678aeb6e34fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a21069-b54f-7c10-b60a-0681eed07eb7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

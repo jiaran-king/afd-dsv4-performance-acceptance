@@ -1,0 +1,27 @@
+scripts/launch.sh
+  s_4142e4d823eacb::t_2fbbe0640c4150 80
+docs/acceptance.md
+  s_4142e4d823eacb::t_2fbbe0640c4150 18
+scripts/runtime-maps.py
+  s_4142e4d823eacb::t_2fbbe0640c4150 66,68-70
+scripts/prepare-cws-overlay.sh
+  s_4142e4d823eacb::t_2fbbe0640c4150 1-45
+scripts/prepare-runtime.sh
+  s_4142e4d823eacb::t_2fbbe0640c4150 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f4234dfcfe6d1294359e03bec9ab76c2165d8c23",
+  "prompts": {},
+  "sessions": {
+    "s_4142e4d823eacb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20844-8a16-7323-87a1-9e08457b0f55",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

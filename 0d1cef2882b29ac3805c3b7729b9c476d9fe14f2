@@ -1,0 +1,29 @@
+site.env.example
+  s_5b1f0bdca539ca::t_0e41c67ee7bae5 1-2,7-8,11,15-16,19,21,24,31,33,35
+reproduce.sh
+  s_5b1f0bdca539ca::t_0e41c67ee7bae5 6
+results/2026-11-24/README.md
+  s_5b1f0bdca539ca::t_0e41c67ee7bae5 12
+docs/reproduce-910c.md
+  s_5b1f0bdca539ca::t_0e41c67ee7bae5 1,3,5,7-9,11,13,15-40,42-45,47-53,56-57,60-62,66,68-73,75,77
+  s_5b1f0bdca539ca::t_4dcc97785c8ce5 64
+  s_5b1f0bdca539ca::t_e81fc6424bccf2 63
+README.md
+  s_5b1f0bdca539ca::t_0e41c67ee7bae5 6,12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0d1cef2882b29ac3805c3b7729b9c476d9fe14f2",
+  "prompts": {},
+  "sessions": {
+    "s_5b1f0bdca539ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20cdf-d6e8-7283-b7d8-34e74c0e014e",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
