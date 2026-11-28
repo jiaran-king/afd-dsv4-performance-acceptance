@@ -1,0 +1,18 @@
+results/1128_4rps/20261128T015045Z-1784/README.md
+  h_77bd4dffd3013a 1-21
+results/1128_4rps/20261128T015045Z-1784/SHA256SUMS
+  h_77bd4dffd3013a 1-2
+results/1128_4rps/20261128T015045Z-1784/acceptance-1128_4rps-20261128T015045Z-1784.json
+  h_77bd4dffd3013a 1-836
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "12d76cce32d0b390467f348ca8b479e372df9204",
+  "prompts": {},
+  "humans": {
+    "h_77bd4dffd3013a": {
+      "author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}
