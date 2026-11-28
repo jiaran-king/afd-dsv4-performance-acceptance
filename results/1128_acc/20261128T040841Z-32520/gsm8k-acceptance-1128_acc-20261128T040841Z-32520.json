@@ -1,0 +1,87 @@
+{
+  "questions": 300,
+  "max_afd_drop_pp": 1.5,
+  "scenarios": {
+    "0-shot": {
+      "baseline": {
+        "scenario": "0-shot",
+        "dataset_sha256": "205cef3e4ab3405006c361b9a6da4521fd9558c25553c193302643f68fafb5da",
+        "questions": 300,
+        "correct": 279,
+        "accuracy_pct": 93.0,
+        "unparsed": 3,
+        "length_limited": 5,
+        "max_output_tokens": 1024,
+        "concurrency": 32,
+        "temperature": 0,
+        "stop": [
+          "Question:",
+          "</s>",
+          "<|im_end|>"
+        ],
+        "seed": null
+      },
+      "afd": {
+        "scenario": "0-shot",
+        "dataset_sha256": "205cef3e4ab3405006c361b9a6da4521fd9558c25553c193302643f68fafb5da",
+        "questions": 300,
+        "correct": 276,
+        "accuracy_pct": 92.0,
+        "unparsed": 6,
+        "length_limited": 7,
+        "max_output_tokens": 1024,
+        "concurrency": 32,
+        "temperature": 0,
+        "stop": [
+          "Question:",
+          "</s>",
+          "<|im_end|>"
+        ],
+        "seed": null
+      },
+      "afd_minus_baseline_pp": -1.0,
+      "passed": true
+    },
+    "8-shot": {
+      "baseline": {
+        "scenario": "8-shot",
+        "dataset_sha256": "205cef3e4ab3405006c361b9a6da4521fd9558c25553c193302643f68fafb5da",
+        "questions": 300,
+        "correct": 285,
+        "accuracy_pct": 95.0,
+        "unparsed": 1,
+        "length_limited": 0,
+        "max_output_tokens": 512,
+        "concurrency": 12,
+        "temperature": 0,
+        "stop": [
+          "Question:",
+          "</s>",
+          "<|im_end|>"
+        ],
+        "seed": 1234
+      },
+      "afd": {
+        "scenario": "8-shot",
+        "dataset_sha256": "205cef3e4ab3405006c361b9a6da4521fd9558c25553c193302643f68fafb5da",
+        "questions": 300,
+        "correct": 285,
+        "accuracy_pct": 95.0,
+        "unparsed": 1,
+        "length_limited": 0,
+        "max_output_tokens": 512,
+        "concurrency": 12,
+        "temperature": 0,
+        "stop": [
+          "Question:",
+          "</s>",
+          "<|im_end|>"
+        ],
+        "seed": 1234
+      },
+      "afd_minus_baseline_pp": 0.0,
+      "passed": true
+    }
+  },
+  "gsm8k_passed": true
+}
