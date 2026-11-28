@@ -1,0 +1,21 @@
+README.md
+  s_a6678aeb6e34fc::t_1a9a139313ba47 1,71-72,108,118
+  s_a6678aeb6e34fc::t_02ac69b869bcb9 22-24,27-56,59-61,63,66-70,73-87,91-107,109-116
+  s_a6678aeb6e34fc::t_9ceecf904e0c7a 117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1b32fdb9388b2ef083508a7cec9f80b2acbb9c79",
+  "prompts": {},
+  "sessions": {
+    "s_a6678aeb6e34fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a21069-b54f-7c10-b60a-0681eed07eb7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Zhou ziheng <jiaranran2@gmail.com>"
+    }
+  }
+}

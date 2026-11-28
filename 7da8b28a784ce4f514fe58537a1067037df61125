@@ -1,0 +1,28 @@
+docs/acceptance.md
+  s_a6678aeb6e34fc::t_843ce536f6e488 44
+README.md
+  s_a6678aeb6e34fc::t_843ce536f6e488 5,7,16
+docs/build-environment-910c.md
+  s_a6678aeb6e34fc::t_43f062f72815ed 18-20,28
+  s_a6678aeb6e34fc::t_bab0b3f5591c30 15,46
+  s_a6678aeb6e34fc::t_77942ed8a1905d 14,26
+  s_a6678aeb6e34fc::t_843ce536f6e488 5,7,16-17,32,45,47,52,54
+docs/reproduce-910c.md
+  s_a6678aeb6e34fc::t_843ce536f6e488 3-6,18-20,25,31,33,35,41-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7da8b28a784ce4f514fe58537a1067037df61125",
+  "prompts": {},
+  "sessions": {
+    "s_a6678aeb6e34fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a21069-b54f-7c10-b60a-0681eed07eb7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": null
+    }
+  }
+}
